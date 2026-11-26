@@ -1,0 +1,14 @@
+# Tes jeux restent chez toi : aucun dump n'entre dans le dépôt
+roms/*
+!roms/LISEZMOI.txt
+*.z64
+*.n64
+*.v64
+*.gb
+*.gbc
+*.srm
+*.sav
+*.state
+node_modules/
+.DS_Store
+Thumbs.db

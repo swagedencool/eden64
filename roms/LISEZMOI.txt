@@ -1,0 +1,4 @@
+Dépose ici tes dumps de cartouches (.z64, .n64, .v64 ou .zip).
+Ils apparaissent dans la ludothèque de eden64, prêts en un clic.
+
+Ce dossier est privé : ne le publie pas avec le site.

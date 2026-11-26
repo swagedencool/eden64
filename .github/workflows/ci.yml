@@ -1,0 +1,16 @@
+name: CI
+on: [push, pull_request]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Aucun dump de jeu dans le dépôt
+        run: "! git ls-files | grep -iE '\\.(z64|n64|v64|gb|gbc|srm|sav|state)$'"
+      - name: Syntaxe
+        run: node --check app.js && node --check serveur.mjs
+      - name: Test de fumée
+        run: node tests/smoke.mjs

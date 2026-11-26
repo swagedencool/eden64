@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>eden64</title>
+<meta name="description" content="eden64 : émulateur Nintendo 64 en WebAssembly. Tes cartouches et tes sauvegardes restent dans ton navigateur.">
+<meta name="theme-color" content="#1c1d20">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="icons/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-title" content="eden64">
+<meta property="og:type" content="website">
+<meta property="og:title" content="eden64 · browser n64 emulator">
+<meta property="og:description" content="Émulateur Nintendo 64 en WebAssembly : tes cartouches et tes sauvegardes restent dans ton navigateur.">
+<meta property="og:image" content="https://eden64.netlify.app/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:url" content="https://eden64.netlify.app/">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="fonts.css">
+<style>
+/* VOICE: un poste de jeu de passionné, précis et calme, comme un frontend d'émulation haut de gamme
+   IDEA: la console posée sur un bureau : ludothèque de cartouches à gauche, écran encastré au centre, panneau technique à droite
+   PICTURE: l'écran 4:3 dans sa coque, qui occupe toute la hauteur disponible
+   COLOUR and TYPE: plastique gris chaud, creux graphite, rouge « Start » ; Chakra Petch + IBM Plex
+   LAYOUT: application plein écran en trois colonnes ; deux colonnes sous 1240px ; une colonne sous 900px */
+:root{color-scheme:light dark;
+  --bg:light-dark(#dcd8ce,#202226);--panel:light-dark(#ebe8e1,#2b2d32);--panel-2:light-dark(#d3cec3,#1d1f23);--hover:light-dark(#e2ded5,#34373d);
+  --ink:light-dark(#1b1c1f,#ecebe6);--muted:light-dark(#5a5b5f,#a4a5aa);--line:light-dark(#bcb6a9,#3d4047);
+  --recess:#121316;--red:#d22f27;--red-2:#a8211b;--ok:#2f9e4f;--warn:#d99a1e;--blue:#2f6fd2;--yellow:#e8b31c;
+  --title:"Chakra Petch",system-ui,sans-serif;--body:"IBM Plex Sans",system-ui,sans-serif;--mono:"IBM Plex Mono",ui-monospace,monospace;
+  --top:64px;--gap:16px;--r:14px}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 var(--body);overflow-x:clip}
+h1,h2,h3{font-family:var(--title);line-height:1.1;margin:0;text-wrap:balance}
+button,select,input{font:inherit;color:inherit}
+kbd{font:500 11.5px var(--mono);padding:1px 6px;border-radius:6px;background:var(--panel-2);border:1px solid var(--line);border-bottom-width:2px;white-space:nowrap;display:inline-block;line-height:1.5}
+.ico{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* ---------- Barre supérieure ---------- */
+.topbar{height:var(--top);display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 var(--gap);background:repeating-linear-gradient(180deg,transparent 0 9px,light-dark(#0000000b,#ffffff07) 9px 11px),var(--panel-2);border-bottom:1px solid var(--line)}
+.brand{display:flex;gap:12px;align-items:center}
+.brand h1{font-size:24px}
+.brand p{margin:0;font-size:13px;color:var(--muted)}
+.chips{display:flex;gap:6px;list-style:none;margin:0;padding:0;overflow-x:auto}
+.chip{display:flex;align-items:center;gap:7px;padding:4px 10px;border-radius:999px;background:var(--panel);border:1px solid var(--line);font-size:13px;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none}
+[data-s=ok] .dot{background:var(--ok);box-shadow:0 0 6px var(--ok)}[data-s=warn] .dot{background:var(--warn)}[data-s=no] .dot{background:var(--red)}
+
+/* ---------- Coque à trois colonnes ---------- */
+.shell{display:grid;grid-template-columns:272px minmax(0,1fr) 368px;grid-template-areas:"lib stage panel";gap:var(--gap);padding:var(--gap);max-width:1760px;margin:0 auto;align-items:start}
+.lib{grid-area:lib}.stage{grid-area:stage}.panel{grid-area:panel}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:var(--r)}
+.lib,.panel{position:sticky;top:var(--gap);max-height:calc(100vh - var(--top) - 2*var(--gap));display:flex;flex-direction:column;overflow:hidden}
+.sect{padding:14px 16px}
+.sect+.sect{border-top:1px solid var(--line)}
+.sect h2{font-size:17px}
+.head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.hint{font-size:13px;color:var(--muted);margin:6px 0 0}
+.scroll{overflow:auto;overscroll-behavior:contain}
+
+/* ---------- Ludothèque ---------- */
+.lib .list{flex:1 1 auto;padding:4px 10px 10px;display:grid;gap:8px;align-content:start}
+.cart{position:relative;display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 8px 8px 10px;border-radius:12px;border:1px solid transparent;cursor:pointer;background:transparent;text-align:left;width:100%}
+.cart:hover{background:var(--hover)}
+.cart[aria-current=true]{background:var(--panel-2);border-color:var(--line)}
+.cart:focus-visible{outline:3px solid var(--red);outline-offset:1px}
+.cart .art{width:44px;height:38px;border-radius:7px 7px 3px 3px;background:linear-gradient(180deg,#6b6e76,#3c3e44);position:relative;box-shadow:inset 0 1px 0 #ffffff40}
+.cart .art::before{content:"";position:absolute;left:6px;right:6px;top:5px;height:19px;border-radius:3px;background:var(--lbl,#e8e3d6)}
+.cart .art::after{content:"";position:absolute;left:9px;right:9px;top:9px;height:4px;border-radius:2px;background:var(--stripe,#d22f27)}
+.cart b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;font-size:14px;line-height:1.25;overflow:hidden}
+.cart small{display:block;color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cart .play{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:var(--red);color:#fff;border:0;cursor:pointer;opacity:0;transition:opacity .12s}
+.cart:hover .play,.cart:focus-within .play,.cart[aria-current=true] .play{opacity:1}
+@media(hover:none){.cart .play{opacity:1}}
+.cart .play .ico{width:14px;height:14px;fill:#fff;stroke:none;margin-left:2px}
+.cart .forget{position:absolute;top:2px;right:46px;border:0;background:none;color:var(--muted);font-size:12px;cursor:pointer;padding:2px 4px;opacity:0}
+.cart:hover .forget{opacity:1}
+.gblist{display:grid;gap:6px;margin-bottom:8px}.gblist:empty{display:none}
+.actions.two{display:grid;grid-template-columns:1fr 1fr}.actions.two .btn{justify-content:center;padding-left:6px;padding-right:6px}
+.switch{display:inline-flex;align-items:center;gap:7px;cursor:pointer;font-size:13px;color:var(--muted);user-select:none}
+.switch input{position:absolute;opacity:0;width:1px;height:1px}
+.switch .track{width:30px;height:18px;border-radius:999px;background:var(--line);position:relative;transition:background .15s}
+.switch .track::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .15s}
+.switch input:checked+.track{background:var(--ok)}
+.switch input:checked+.track::after{transform:translateX(12px)}
+.switch input:focus-visible+.track{outline:2px solid var(--blue);outline-offset:2px}
+.cart.gb .forget{top:50%;right:8px;transform:translateY(-50%);background:var(--panel)}
+.cart.gb:hover .tag,.cart.gb:focus-within .tag{visibility:hidden}.cart.gb:focus-within .forget{opacity:1}
+.cart.gb{grid-template-columns:34px minmax(0,1fr) auto;padding:6px 8px}
+.cart .art.gbart{width:30px;height:36px;border-radius:3px 9px 3px 3px;background:linear-gradient(180deg,#c9c9c9,#8f8f94)}
+.cart .art.gbart::before{left:5px;right:5px;top:5px;height:15px}
+.cart .art.gbart::after{left:8px;right:8px;top:8px;height:3px}
+.cart .tag{font-size:11px;font-weight:600;padding:2px 7px;border-radius:999px;background:var(--panel-2);border:1px solid var(--line);white-space:nowrap}
+.cart .tag.on{background:var(--ok);border-color:var(--ok);color:#fff}
+.empty{border:2px dashed var(--line);border-radius:12px;padding:14px;font-size:13px;color:var(--muted);text-align:center}
+.add{display:flex;align-items:center;justify-content:center;gap:8px;min-height:40px;border-radius:11px;border:2px dashed var(--line);cursor:pointer;font-weight:600;font-size:14px;position:relative;transition:border-color .15s,background .15s}
+.add:hover,.add.over{border-color:var(--red);background:var(--hover)}
+.add:focus-within{outline:3px solid var(--red);outline-offset:2px}
+.add input{position:absolute;width:1px;height:1px;opacity:0}
+.err{color:var(--red);font-size:13px;margin:8px 0 0;font-weight:600}.err:empty{display:none}
+.pending{margin-top:10px;padding:10px 12px;border-radius:11px;border:1px solid var(--line);background:light-dark(#f6f4ef,#24262a);font-size:13px}
+.pending p{margin:0 0 8px}.pending .row{display:flex;flex-wrap:wrap;gap:6px}
+.pending label{display:flex;gap:6px;align-items:flex-start;margin-bottom:8px}
+
+/* ---------- Scène : écran + barre de jeu ---------- */
+.stage{display:grid;gap:12px;justify-items:center}
+.bezel{position:relative;width:min(100%,calc((100vh - var(--top) - 2*var(--gap) - 132px) * 4 / 3));min-width:min(100%,320px);background:linear-gradient(160deg,light-dark(#bdb7aa,#34373d),light-dark(#a39c8f,#1a1c20));padding:clamp(8px,1.2vw,16px);border-radius:18px;box-shadow:inset 0 2px 0 light-dark(#fff8,#fff1),0 16px 34px -20px #000b}
+.bezel.wide{width:min(100%,calc((100vh - var(--top) - 2*var(--gap) - 132px) * 16 / 9))}
+.screen{position:relative;aspect-ratio:4/3;background:var(--recess);border-radius:10px;overflow:hidden;box-shadow:inset 0 0 0 2px #000,inset 0 10px 30px #000c}
+.wide .screen{aspect-ratio:16/9}
+#game{position:absolute;inset:0}
+.overlay{position:absolute;inset:0;display:grid;place-items:center;align-content:center;gap:12px;color:#c9c9cc;text-align:center;padding:20px;background:radial-gradient(120% 90% at 50% 30%,#23252b,#0f1013);z-index:2}
+.overlay svg.cart-ill{width:min(36%,210px);height:auto}
+.overlay p{margin:0;font-family:var(--title);font-size:clamp(18px,2.1vw,24px);font-weight:600;color:#ececec}
+.overlay small{color:#9a9ba1;font-size:14px;max-width:44ch}
+.float{animation:float 4s ease-in-out infinite}@keyframes float{50%{transform:translateY(-8px)}}
+@media(prefers-reduced-motion:reduce){.float{animation:none}}
+.toast{position:absolute;left:50%;top:22px;transform:translateX(-50%);z-index:5;background:#000c;color:#fff;font:600 14px var(--body);padding:7px 14px;border-radius:999px;pointer-events:none;opacity:0;transition:opacity .2s;white-space:nowrap}
+.toast.on{opacity:1}
+.notice{position:absolute;left:12px;right:12px;bottom:12px;z-index:4;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:10px 12px;border-radius:12px;background:#0b0c0fe6;color:#f2f2f2;font-size:14px;box-shadow:0 8px 24px #0008}
+.notice p{margin:0;flex:1 1 260px}
+.notice .btn{background:#ffffff14;border-color:#ffffff33;color:#fff}.notice .btn.primary{background:var(--red);border-color:var(--red-2)}
+.bar{width:100%;max-width:inherit;display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px;border-radius:var(--r);background:var(--panel);border:1px solid var(--line)}
+.bar .sep{width:1px;align-self:stretch;background:var(--line);margin:2px 2px}
+.bar .end{margin-left:auto;display:flex;gap:8px;align-items:center}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:40px;padding:0 11px;border-radius:11px;border:1px solid var(--line);background:var(--panel-2);cursor:pointer;font-weight:600;font-size:14px;white-space:nowrap}
+.btn:hover:not(:disabled){border-color:var(--ink)}
+.btn:disabled{opacity:.42;cursor:not-allowed}
+.btn:focus-visible,select:focus-visible,.seg button:focus-visible,.tabs button:focus-visible{outline:3px solid var(--red);outline-offset:2px}
+.btn.primary{background:var(--red);color:#fff;border-color:var(--red-2);box-shadow:inset 0 -3px 0 #0003}
+.btn.primary.on{background:var(--panel-2);color:var(--ink);border-color:var(--line);box-shadow:none}
+.btn.sm{min-height:34px;font-size:13px;padding:0 10px;border-radius:9px}
+.btn.icon{padding:0;width:40px}
+.btn kbd{margin-left:2px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:11px;overflow:hidden;background:var(--panel-2)}
+.seg button{border:0;min-height:38px;background:transparent;font-size:13px;font-weight:600;padding:0 9px;cursor:pointer}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed=true]{background:var(--ink);color:var(--bg)}
+.seg button:disabled{opacity:.5;cursor:default}
+.status{width:100%;display:flex;flex-wrap:wrap;gap:4px 18px;align-items:center;font-size:13px;color:var(--muted);padding:0 4px}
+.status b{color:var(--ink);font-family:var(--mono);font-weight:500;white-space:nowrap}
+.led{width:11px;height:11px;border-radius:50%;background:#5b1512;box-shadow:inset 0 1px 2px #0008;flex:none}
+.led[data-s=load]{background:var(--warn);box-shadow:0 0 10px var(--warn)}.led[data-s=on]{background:#ff3b30;box-shadow:0 0 12px #ff3b30}.led[data-s=pause]{background:var(--yellow)}
+.state{display:flex;align-items:center;gap:8px;color:var(--ink);font-weight:600}
+.status .turbo{margin-left:auto}
+
+/* ---------- Panneau à onglets ---------- */
+.tabs{display:flex;border-bottom:1px solid var(--line);padding:0 8px}
+.tabs button{flex:1;border:0;background:none;padding:12px 4px 10px;font-weight:600;font-size:14px;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-1px}
+.tabs button[aria-selected=true]{color:var(--ink);border-bottom-color:var(--red)}
+.tabpane{flex:1 1 auto}
+.tabpane h3{font-size:15px;margin:0 0 4px}
+.facts{display:grid;grid-template-columns:auto minmax(0,1fr);gap:5px 12px;font-size:13px;margin:10px 0 12px}
+.facts dt{color:var(--muted)}.facts dd{margin:0;font-weight:600;overflow-wrap:anywhere}
+.actions{display:flex;flex-wrap:wrap;gap:6px}
+.slots{display:grid;gap:8px;margin-top:10px}
+.slotrow{display:grid;grid-template-columns:88px minmax(0,1fr);gap:10px;align-items:center}
+.thumb{aspect-ratio:4/3;border-radius:8px;background:var(--recess);display:grid;place-items:center;color:#7f8189;font-size:11px;overflow:hidden;border:1px solid var(--line)}
+.thumb img{width:100%;height:100%;object-fit:cover}
+.slotrow b{font-size:13px}.slotrow small{display:block;color:var(--muted);font-size:12px;margin-bottom:4px}
+.form{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px 12px;align-items:center;font-size:13px;margin-top:12px}
+.form label{color:var(--muted)}
+select{font-size:14px;min-height:36px;border-radius:9px;border:1px solid var(--line);background:var(--panel-2);padding:0 8px;width:100%}
+.summary{margin:12px 0 0;padding:9px 11px;border-radius:9px;background:var(--panel-2);font-size:13px}
+.summary b{font-family:var(--mono);font-weight:500}
+.pad{width:100%;height:auto;display:block;margin:4px 0 6px}
+.pad .body{fill:light-dark(#c3bdb0,#3a3d44);stroke:light-dark(#9e978a,#55585f);stroke-width:2}
+.pad .k{fill:light-dark(#8e887c,#23252a);transition:fill .06s}
+.pad .base{fill:light-dark(#aba496,#2a2c31)}
+.pad .k.on{fill:var(--red)}.pad .k.a.on{fill:var(--blue)}.pad .k.b.on{fill:var(--ok)}.pad .k.c.on{fill:var(--yellow)}
+.map{width:100%;border-collapse:collapse;font-size:13px}
+.map td{padding:5px 6px;border-bottom:1px solid var(--line)}
+.map td:first-child{font-weight:600;white-space:nowrap}
+.map td:last-child{text-align:right;color:var(--muted)}
+.map tr.on td{background:light-dark(#f3d6d3,#4a2422);color:var(--ink)}
+dl.readout{display:grid;grid-template-columns:auto minmax(0,1fr);gap:5px 12px;margin:10px 0 0;font-size:13px}
+dl.readout dt{color:var(--muted)}dl.readout dd{margin:0;font-family:var(--mono);overflow-wrap:anywhere;text-align:right}
+.game-id{margin:10px 0 0;padding:9px 11px;border-radius:9px;background:var(--panel-2);font-weight:600;font-size:13px}.game-id:empty{display:none}
+ol.log{list-style:none;margin:10px 0 0;padding:10px 12px;font:12px/1.5 var(--mono);max-height:300px;overflow:auto;border-radius:9px;background:var(--recess);color:#d6d6da}
+ol.log li{display:grid;grid-template-columns:4.8em minmax(0,1fr);gap:6px}
+ol.log time{color:#7f8189}ol.log .w{color:#f0b54a}ol.log .e{color:#ff6b62}ol.log .k{color:#7ad38f}
+.tips{margin:10px 0 0;padding-left:16px;font-size:13px;color:var(--muted)}.tips li{margin-bottom:6px}.tips strong{color:var(--ink)}
+.sub{margin:2px 0 6px}
+footer{padding:4px var(--gap) 18px;font-size:12px;color:var(--muted);text-align:center}
+
+/* ---------- eden64 : nouveautés ---------- */
+.brand h1{font-size:26px;letter-spacing:-.01em}.brand h1 .r64{color:#d22f27}
+.seg.sm button{min-height:30px;padding:0 8px;font-size:12.5px}
+.status .turbo{margin-left:auto;display:flex;align-items:center;gap:8px}
+.bar .btn.icon[aria-pressed=true]{background:var(--ink);color:var(--bg)}
+#btn-rec.rec-on{background:var(--red);color:#fff;border-color:var(--red-2)}
+.flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:6}
+.flash.on{animation:flash .35s ease-out}@keyframes flash{0%{opacity:.55}100%{opacity:0}}
+.recbadge{position:absolute;top:12px;left:12px;z-index:5;display:flex;align-items:center;gap:7px;padding:4px 10px;border-radius:999px;background:#000b;color:#fff;font:600 13px var(--mono)}
+.rdot{width:9px;height:9px;border-radius:50%;background:#ff3b30;animation:blink 1s steps(2) infinite}@keyframes blink{50%{opacity:.2}}
+.immx{display:none;position:absolute;top:10px;left:10px;z-index:7;background:#000a;color:#fff;border-color:#fff4}
+.ocarina{position:absolute;left:10px;right:10px;top:10px;z-index:4;max-height:calc(100% - 66px);overflow:auto;padding:10px 12px 8px;border-radius:12px;background:#0b0c0fe8;color:#ececec;box-shadow:0 10px 30px #000a}
+.ohead{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.ohead h2{font-size:15px;display:flex;gap:7px;align-items:center;margin:0;color:#fff}
+.ofound{flex:1;color:#7ad38f;font-weight:600;font-size:14px}
+.ohead .btn{background:#ffffff14;border-color:#ffffff33;color:#fff;min-height:30px;width:30px}
+.ogrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(205px,1fr));gap:5px 10px}
+.song{padding:5px 7px;border-radius:8px;border:1px solid transparent}
+.song b{display:block;font-size:13px;color:#fff}.song small{display:block;font-size:11.5px;color:#a9aab0;line-height:1.3}
+.song.hit{animation:hit 2s ease-out}@keyframes hit{0%{background:#2f9e4f66;border-color:#7ad38f}100%{background:transparent;border-color:transparent}}
+.notes,.oinput{display:flex;gap:3px;margin:3px 0 2px}
+.nt{width:19px;height:19px;border-radius:50%;display:inline-grid;place-items:center;font:700 10px/1 var(--body);flex:none}
+.nt.na{background:#2f6fd2;color:#fff}.nt.nc{background:#e8b31c;color:#3a2a00;font-size:9px}
+.ofoot{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:6px 12px;margin-top:6px;padding-top:6px;border-top:1px solid #ffffff22;font-size:12px;color:#a9aab0}
+.binds th{text-align:left;font:600 11.5px var(--body);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:12px 6px 4px}
+.binds td:last-child{text-align:right}
+.bind{font:500 12.5px var(--mono);min-width:92px;padding:4px 9px;border-radius:7px;background:var(--panel-2);border:1px solid var(--line);border-bottom-width:2px;cursor:pointer;color:var(--ink)}
+.bind:hover{border-color:var(--ink)}.bind:focus-visible{outline:3px solid var(--red);outline-offset:1px}
+.bind.none{color:var(--muted);font-style:italic}
+.bind.wait{background:var(--red);border-color:var(--red-2);color:#fff;animation:pulse 1s ease-in-out infinite}@keyframes pulse{50%{opacity:.7}}
+.range{display:flex;align-items:center;gap:8px}.range input{flex:1}.range b{font:500 12.5px var(--mono);min-width:3.6em;text-align:right}
+input[type=search],input:not([type]),textarea{font:inherit;font-size:14px;min-height:36px;border-radius:9px;border:1px solid var(--line);background:var(--panel-2);padding:6px 9px;width:100%;color:var(--ink)}
+textarea{font-family:var(--mono);font-size:13px;resize:vertical}
+.actions input[type=search]{flex:1 1 180px;width:auto}
+ul.cheats{list-style:none;margin:0;padding:0;display:grid;gap:2px}
+ul.cheats li{display:flex;align-items:center;gap:6px;padding:5px 6px;border-radius:9px}
+ul.cheats li:hover{background:var(--hover)}ul.cheats li.on{background:light-dark(#dcefe0,#1f3326)}
+ul.cheats .switch{flex:1;align-items:flex-start;color:var(--ink)}ul.cheats .switch .track{margin-top:2px;flex:none}
+.ctxt{display:grid;gap:1px}.ctxt b{font-size:13px;font-weight:600}.ctxt code{font:11.5px var(--mono);color:var(--muted);overflow-wrap:anywhere}
+ul.cheats li.more{color:var(--muted);font-size:13px;justify-content:center}
+.btn.ghost{background:transparent;border-color:transparent;color:var(--muted)}
+.tabs button.dot-on::after{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--ok);margin-left:5px;vertical-align:middle}
+.safety{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin-top:8px}
+.safety .hint{grid-column:1/-1}
+.auto{display:grid;gap:3px;padding:0;border:0;background:none;cursor:pointer;text-align:center;color:var(--ink)}
+.auto img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:7px;border:2px solid var(--line);background:var(--recess)}
+.auto small{font-size:11px;color:var(--muted);line-height:1.2}
+.auto:hover img{border-color:var(--ink)}.auto.armed img{border-color:var(--red)}.auto.armed small{color:var(--red);font-weight:600}
+.auto:disabled{cursor:default;opacity:.6}
+/* Mode immersif (écran tactile) : l'écran occupe tout, la manette tactile d'EmulatorJS se pose dessus */
+body.immersive{overflow:hidden}
+body.immersive .bezel{position:fixed;inset:0;z-index:50;width:auto!important;padding:0;border-radius:0;background:#000}
+body.immersive .screen{aspect-ratio:auto;height:100%;border-radius:0;box-shadow:none}
+body.immersive .immx{display:inline-flex}
+@media(max-width:1340px){.brand p{display:none}}
+@media(max-width:1599px){.bar kbd{display:none}}
+@media(max-width:1239px){
+  .shell{grid-template-columns:minmax(0,1fr) 352px;grid-template-areas:"stage panel" "lib panel"}
+  .lib{position:static;max-height:none}
+  .lib .list{grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}
+}
+@media(max-width:899px){
+  :root{--top:auto}
+  .topbar{flex-wrap:wrap;padding:12px var(--gap)}
+  .shell{grid-template-columns:minmax(0,1fr);grid-template-areas:"stage" "lib" "panel"}
+  .panel{position:static;max-height:none}
+  .bezel,.bezel.wide{width:100%}
+  .bar .end{margin-left:0}
+}
+@media(max-width:520px){.brand p{display:none}.toast{white-space:normal;max-width:86%}.form{grid-template-columns:minmax(0,1fr)}.bar .btn:not(.icon) span{display:none}.status .turbo{margin-left:0}.ogrid{grid-template-columns:1fr 1fr}.song small{display:none}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-power" viewBox="0 0 24 24"><path d="M12 3v8"/><path d="M6.3 6.8a8 8 0 1 0 11.4 0"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><path d="M9 5v14M15 5v14"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z"/></symbol>
+  <symbol id="i-save" viewBox="0 0 24 24"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></symbol>
+  <symbol id="i-load" viewBox="0 0 24 24"><path d="M12 15V4"/><path d="m7 9 5-5 5 5"/><path d="M5 20h14"/></symbol>
+  <symbol id="i-full" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-cam" viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></symbol>
+  <symbol id="i-rec" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5" fill="currentColor"/></symbol>
+  <symbol id="i-note" viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+</svg>
+
+<header class="topbar">
+  <div class="brand">
+    <svg width="40" height="40" viewBox="0 0 100 100" aria-hidden="true"><rect x="4.75" y="4.75" width="90.5" height="90.5" rx="21.5" fill="#1c1d20" stroke="#5a5d66" stroke-width="1.5"/><circle cx="34" cy="34" r="11" fill="#d22f27"/><path d="M54 46 C54 30 62 22 78 22 C78 38 70 46 54 46 Z" fill="#2f9e4f"/><circle cx="34" cy="66" r="11" fill="#e8b31c"/><circle cx="66" cy="66" r="11" fill="#2f6fd2"/></svg>
+    <div><h1>eden<span class="r64">64</span></h1><p>Émulateur Nintendo 64 en WebAssembly : tes cartouches et tes sauvegardes restent dans ton navigateur.</p></div>
+  </div>
+  <ul class="chips" aria-label="Capacités du navigateur">
+    <li class="chip" id="cap-wasm"><span class="dot"></span><span>WebAssembly</span></li>
+    <li class="chip" id="cap-gl2"><span class="dot"></span><span>WebGL 2</span></li>
+    <li class="chip" id="cap-idb"><span class="dot"></span><span>Stockage local</span></li>
+    <li class="chip" id="cap-pad"><span class="dot"></span><span>Manette</span></li>
+  </ul>
+</header>
+
+<div class="shell">
+  <!-- ================= Ludothèque ================= -->
+  <aside class="lib box" aria-labelledby="lib-h">
+    <div class="sect">
+      <div class="head"><h2 id="lib-h">Ludothèque</h2><span class="hint" id="lib-count" style="margin:0"></span></div>
+      <label class="add" id="lib-add"><input type="file" id="file-rom" accept=".z64,.n64,.v64,.bin,.zip"><svg class="ico"><use href="#i-plus"/></svg>Ajouter une cartouche</label>
+      <p class="err" id="err"></p>
+    </div>
+    <div class="list scroll" id="lib" role="list"></div>
+    <div class="sect">
+      <h2 style="font-size:15px">Carte mémoire</h2>
+      <label class="add" id="slot-save" style="margin-top:8px"><input type="file" id="file-save" accept=".srm,.sra,.fla,.eep,.mpk,.pak,.state,.zip"><svg class="ico"><use href="#i-load"/></svg>Insérer une sauvegarde</label>
+      <p class="hint">.srm, .sra, .fla, .eep, .mpk, .state ou le .zip exporté. Format et ordre des octets détectés.</p>
+      <div class="pending" id="pending" hidden></div>
+    </div>
+    <div class="sect" id="tpak">
+      <div class="head" style="margin-bottom:8px"><h2 style="font-size:15px">Transfer Pak</h2><label class="switch" title="Transfer Pak branché sur la manette 1"><input type="checkbox" id="tpak-on"><span class="track"></span><span class="lbl">Branché</span></label></div>
+      <div class="gblist" id="gb-list"></div>
+      <label class="add" id="slot-gb"><input type="file" id="file-gb" accept=".gb,.gbc,.zip"><svg class="ico"><use href="#i-plus"/></svg>Cartouche Game Boy</label>
+      <div class="actions two" id="gb-actions" style="margin-top:8px" hidden>
+        <label class="btn sm" style="position:relative" title="Importer la sauvegarde de la cartouche Game Boy (.sav d'un émulateur ou d'un lecteur de cartouches)"><input type="file" id="file-gbsav" accept=".sav,.srm,.zip" style="position:absolute;width:1px;height:1px;opacity:0"><svg class="ico"><use href="#i-load"/></svg>Importer .sav</label>
+        <button class="btn sm" id="gb-export" title="Télécharger la sauvegarde Game Boy (.sav)"><svg class="ico"><use href="#i-save"/></svg>Exporter .sav</button>
+      </div>
+      <p class="hint" id="gb-hint">Pour Pokémon Stadium, Mario Golf, Mario Tennis… La cartouche Game Boy et sa sauvegarde sont lues comme avec le vrai accessoire.</p>
+    </div>
+  </aside>
+
+  <!-- ================= Scène ================= -->
+  <main class="stage" aria-label="Console">
+    <div class="bezel" id="bezel">
+      <div class="screen" id="screen">
+        <div id="game"></div>
+        <div class="overlay" id="idle">
+          <svg class="cart-ill float" viewBox="0 0 240 200" aria-hidden="true">
+            <defs><linearGradient id="cg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6b6e76"/><stop offset="1" stop-color="#3c3e44"/></linearGradient>
+            <linearGradient id="lb" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e8e3d6"/><stop offset="1" stop-color="#bdb6a6"/></linearGradient></defs>
+            <ellipse cx="120" cy="188" rx="80" ry="8" fill="#000" opacity=".45"/>
+            <path d="M38 22 Q38 10 50 10 H190 Q202 10 202 22 V150 L188 170 H52 L38 150 Z" fill="url(#cg)"/>
+            <path d="M40 22 Q40 12 50 12 H190" fill="none" stroke="#9a9da5" stroke-width="2"/>
+            <rect x="60" y="34" width="120" height="86" rx="6" fill="url(#lb)"/>
+            <rect x="72" y="48" width="96" height="10" rx="3" fill="#d22f27"/>
+            <rect x="72" y="66" width="70" height="6" rx="3" fill="#8f8a7e"/><rect x="72" y="80" width="84" height="6" rx="3" fill="#8f8a7e"/><rect x="72" y="94" width="52" height="6" rx="3" fill="#8f8a7e"/>
+            <g fill="#2d2f34"><rect x="52" y="132" width="136" height="4" rx="2"/><rect x="52" y="142" width="136" height="4" rx="2"/><rect x="56" y="152" width="128" height="4" rx="2"/></g>
+          </svg>
+          <p id="idle-title">Choisis une cartouche</p>
+          <small id="idle-hint">Clique sur un jeu de la ludothèque, ou glisse un dump .z64 n'importe où sur la page.</small>
+          <button class="btn primary" id="idle-go" hidden><svg class="ico"><use href="#i-power"/></svg>Allumer la console</button>
+        </div>
+        <div class="flash" id="flash" aria-hidden="true"></div>
+        <div class="recbadge" id="rec-badge" hidden><span class="rdot"></span>REC <span id="rec-time">0:00</span></div>
+        <button class="btn icon immx" id="imm-exit" title="Quitter le plein écran" aria-label="Quitter le plein écran"><svg class="ico"><use href="#i-x"/></svg></button>
+        <section class="ocarina" id="ocarina" hidden aria-label="Partitions d'ocarina">
+          <div class="ohead"><h2><svg class="ico"><use href="#i-note"/></svg>Partitions d'ocarina</h2><span class="ofound" id="oca-found" aria-live="polite"></span><button class="btn icon sm" id="oca-close" aria-label="Fermer les partitions"><svg class="ico"><use href="#i-x"/></svg></button></div>
+          <div class="ogrid" id="oca-grid"></div>
+          <div class="ofoot"><span id="oca-legend"></span><span class="oinput" id="oca-input" aria-label="Dernières notes jouées"></span></div>
+        </section>
+        <div class="toast" id="toast" role="status" aria-live="polite"></div>
+        <div class="notice" id="notice" role="alert" hidden></div>
+      </div>
+    </div>
+
+    <div class="bar" role="toolbar" aria-label="Commandes de jeu">
+      <button class="btn primary" id="power" disabled><svg class="ico"><use href="#i-power"/></svg><span>Allumer</span></button>
+      <button class="btn" id="btn-pause" disabled title="Pause"><svg class="ico"><use href="#i-pause"/></svg><span>Pause</span></button>
+      <button class="btn" id="btn-qsave" disabled><svg class="ico"><use href="#i-save"/></svg>Sauver<kbd>F2</kbd></button>
+      <button class="btn" id="btn-qload" disabled><svg class="ico"><use href="#i-load"/></svg>Charger<kbd>F4</kbd></button>
+      <div class="end">
+        <button class="btn icon" id="btn-oca" hidden aria-pressed="false" aria-label="Partitions d'ocarina"><svg class="ico"><use href="#i-note"/></svg></button>
+        <button class="btn icon" id="btn-shot" disabled aria-label="Capture d'écran"><svg class="ico"><use href="#i-cam"/></svg></button>
+        <button class="btn icon" id="btn-rec" disabled aria-pressed="false" aria-label="Enregistrer un clip vidéo"><svg class="ico"><use href="#i-rec"/></svg></button>
+        <button class="btn icon" id="btn-full" disabled title="Plein écran" aria-label="Plein écran"><svg class="ico"><use href="#i-full"/></svg></button>
+      </div>
+    </div>
+    <div class="status" aria-live="polite">
+      <span class="state"><span class="led" id="led"></span><span id="state">Hors tension</span></span>
+      <span>Vitesse <b id="speed-real">—</b></span>
+      <span>Images <b id="fps">—</b></span>
+      <span>Rendu <b id="render">—</b></span>
+      <span>Moteur <b id="load">—</b></span>
+      <span class="turbo" id="turbo-hint"><span class="seg sm" role="group" aria-label="Vitesse de jeu" id="speed-seg"></span></span>
+    </div>
+  </main>
+
+  <!-- ================= Panneau ================= -->
+  <aside class="panel box" aria-label="Réglages">
+    <div class="tabs" role="tablist">
+      <button role="tab" id="tab-partie" aria-controls="pane-partie" aria-selected="true">Partie</button>
+      <button role="tab" id="tab-image" aria-controls="pane-image" aria-selected="false">Image</button>
+      <button role="tab" id="tab-cmd" aria-controls="pane-cmd" aria-selected="false">Touches</button>
+      <button role="tab" id="tab-codes" aria-controls="pane-codes" aria-selected="false">Codes</button>
+      <button role="tab" id="tab-infos" aria-controls="pane-infos" aria-selected="false">Infos</button>
+    </div>
+
+    <div class="tabpane scroll" role="tabpanel" id="pane-partie" aria-labelledby="tab-partie">
+      <div class="sect">
+        <h3>Sauvegarde du jeu</h3>
+        <p class="hint" style="margin-top:0">Les fichiers de partie, comme sur la vraie cartouche. Conservés automatiquement dans ce navigateur.</p>
+        <dl class="facts">
+          <dt>Type</dt><dd id="sv-type">Allume la console pour l'analyser</dd>
+          <dt>Lecture</dt><dd id="sv-time">—</dd>
+        </dl>
+        <div class="actions">
+          <button class="btn sm primary" id="sv-export" disabled><svg class="ico"><use href="#i-save"/></svg>Exporter</button>
+          <button class="btn sm" id="sv-import"><svg class="ico"><use href="#i-load"/></svg>Importer</button>
+          <button class="btn sm" id="sv-undo" hidden>Annuler l'import</button>
+        </div>
+        <p class="hint">Export : un .zip avec le .srm (RetroArch) et la mémoire brute au format cartouche (.sra / .fla / .eep).</p>
+      </div>
+      <div class="sect">
+        <h3>États instantanés</h3>
+        <p class="hint" style="margin-top:0" id="st-hint">Reprends exactement où tu étais.</p>
+        <div class="slots" id="tiles"></div>
+      </div>
+      <div class="sect">
+        <div class="head" style="margin-bottom:4px"><h3 style="margin:0">Filet de sécurité</h3><label class="switch" title="État automatique toutes les 2 minutes"><input type="checkbox" id="safety-on"><span class="track"></span><span class="lbl">Actif</span></label></div>
+        <p class="hint" style="margin-top:0">Un point de retour toutes les 2 minutes et avant chaque chargement d'état ; les 5 derniers sont gardés. Clique deux fois pour revenir.</p>
+        <div class="safety" id="safety"></div>
+      </div>
+    </div>
+
+    <div class="tabpane scroll" role="tabpanel" id="pane-image" aria-labelledby="tab-image" hidden>
+      <div class="sect">
+        <h3>Qualité d'image</h3>
+        <div class="seg" role="group" aria-label="Préréglage" id="preset-seg" style="margin-top:8px">
+          <button data-p="fidele" aria-pressed="false">Fidèle</button>
+          <button data-p="hd" aria-pressed="false">HD</button>
+          <button data-p="ultra" aria-pressed="false">Ultra</button>
+          <button data-p="perso" aria-pressed="false" disabled>Perso</button>
+        </div>
+        <div class="form">
+          <label for="q-res">Résolution</label><select id="q-res"></select>
+          <label for="q-aspect">Format</label>
+          <select id="q-aspect"><option value="4:3">4:3 original</option><option value="16:9 adjusted">16:9 écran large (hack)</option></select>
+          <label for="q-fxaa">Anticrénelage</label>
+          <select id="q-fxaa"><option value="0">Sur-échantillonnage</option><option value="1">Sur-échantillonnage + FXAA</option></select>
+          <label for="q-filter">Filtrage</label>
+          <select id="q-filter"><option value="3point">3 points (fidèle N64)</option><option value="standard">Bilinéaire standard</option></select>
+          <label for="q-tex">Textures</label>
+          <select id="q-tex"><option value="None">Originales</option><option value="2xBRZ">Lissées xBRZ ×2</option><option value="4xBRZ">Lissées xBRZ ×4</option><option value="HQ4X">HQ4x</option></select>
+          <label for="q-compat">Compatibilité</label>
+          <select id="q-compat"><option value="std">Standard (recommandé)</option><option value="exact">Copies framebuffer (diagnostic)</option></select>
+          <label for="q-shader">Écran</label>
+          <select id="q-shader"><option value="disabled">Net</option><option value="crt-easymode.glslp">Téléviseur cathodique</option><option value="crt-zfast">Cathodique léger</option><option value="bicubic">Lissage bicubique</option></select>
+        </div>
+        <p class="summary" id="q-summary"></p>
+        <div class="actions" style="margin-top:10px;align-items:center">
+          <button class="btn sm primary" id="q-apply" disabled>Appliquer</button>
+          <span class="hint" id="q-note" style="margin:0"></span>
+        </div>
+      </div>
+      <div class="sect">
+        <h3>Performance</h3>
+        <dl class="facts"><dt>Machine</dt><dd id="machine">—</dd><dt>Profil</dt><dd id="machine-tier">—</dd></dl>
+        <div class="form" style="margin-top:0"><label for="engine-sel">Moteur N64</label><select id="engine-sel"><option value="auto">Auto selon l'appareil</option><option value="mupen">Complet : mupen64plus-next</option><option value="parallel">Léger : ParaLLEl-N64</option></select></div>
+        <p class="hint" id="engine-note"></p>
+        <div class="actions" style="margin:6px 0 10px"><button class="btn sm primary" id="engine-apply" hidden>Redémarrer avec ce moteur</button></div>
+        <div class="head" style="margin:0"><span style="font-size:13px;font-weight:600">Affichage basse latence</span><label class="switch"><input type="checkbox" id="ll-on"><span class="track"></span><span class="lbl">Actif</span></label></div>
+        <p class="hint">Le canvas du jeu court-circuite le compositeur du navigateur : moins de latence entre ta manette et l'écran, et un peu plus d'images/s sur une machine modeste (+4 % en moyenne, jusqu'à +10 % mesurés). À couper seulement si l'image se déchire.</p>
+        <p class="hint">Si le jeu ralentit, eden64 mesure la cause (bridage du navigateur, carte graphique, processeur) et propose un réglage plus léger en un clic.</p>
+      </div>
+    </div>
+
+    <div class="tabpane scroll" role="tabpanel" id="pane-cmd" aria-labelledby="tab-cmd" hidden>
+      <div class="sect">
+        <div class="sub seg" role="group" aria-label="Appareil">
+          <button id="sub-pad" aria-pressed="true">Manette</button>
+          <button id="sub-kb" aria-pressed="false">Clavier</button>
+        </div>
+        <div id="cmd-pad">
+          <p class="hint" id="pad-status">Branche ta manette puis appuie sur un bouton : le navigateur ne la révèle qu'après un premier appui.</p>
+          <svg class="pad" viewBox="0 0 420 250" role="img" aria-label="Schéma de la manette, les boutons s'allument quand tu appuies">
+            <rect class="k" data-b="6" x="78" y="22" width="74" height="16" rx="8"/>
+            <rect class="k" data-b="7" x="268" y="22" width="74" height="16" rx="8"/>
+            <rect class="k" data-b="4" x="66" y="44" width="96" height="13" rx="6"/>
+            <rect class="k" data-b="5" x="258" y="44" width="96" height="13" rx="6"/>
+            <path class="body" d="M96 62 Q60 62 46 104 L24 188 Q16 230 52 232 Q74 233 94 204 L116 174 H304 L326 204 Q346 233 368 232 Q404 230 396 188 L374 104 Q360 62 324 62 Z"/>
+            <circle class="base" cx="122" cy="112" r="25"/><circle class="k" id="pad-ls" data-b="10" cx="122" cy="112" r="14"/>
+            <rect class="k" data-b="12" x="155" y="141" width="13" height="15" rx="2"/><rect class="k" data-b="13" x="155" y="169" width="13" height="15" rx="2"/>
+            <rect class="k" data-b="14" x="140" y="156" width="15" height="13" rx="2"/><rect class="k" data-b="15" x="168" y="156" width="15" height="13" rx="2"/>
+            <circle class="base" cx="262" cy="163" r="25"/><circle class="k c" id="pad-rs" data-b="11" cx="262" cy="163" r="14"/>
+            <circle class="k" data-b="3" cx="300" cy="92" r="11"/><circle class="k b" data-b="2" cx="278" cy="113" r="11"/>
+            <circle class="k" data-b="1" cx="322" cy="113" r="11"/><circle class="k a" data-b="0" cx="300" cy="134" r="11"/>
+            <rect class="k" data-b="8" x="183" y="102" width="18" height="10" rx="5"/><rect class="k" data-b="9" x="219" y="102" width="18" height="10" rx="5"/>
+          </svg>
+        </div>
+        <div id="cmd-kb" hidden>
+          <div class="seg" role="group" aria-label="Disposition par défaut du clavier" style="margin-top:8px">
+            <button id="kb-azerty" aria-pressed="false">AZERTY</button>
+            <button id="kb-qwerty" aria-pressed="false">QWERTY</button>
+          </div>
+        </div>
+        <p class="hint" id="bind-hint">Clique sur une touche pour la changer. Une touche déjà prise est échangée automatiquement.</p>
+        <table class="map binds"><tbody id="binds"></tbody></table>
+        <div class="actions" style="margin-top:10px"><button class="btn sm" id="bind-reset">Réinitialiser</button></div>
+      </div>
+      <div class="sect">
+        <h3>Accessoire de la manette 1</h3>
+        <div class="form">
+          <label for="pak-sel">Accessoire</label>
+          <select id="pak-sel"><option value="auto">Auto selon le jeu</option><option value="rumble">Rumble Pak (vibration)</option><option value="memory">Carte mémoire (Controller Pak)</option><option value="transfer">Transfer Pak</option><option value="none">Aucun</option></select>
+          <label for="rumble-int">Vibration</label>
+          <span class="range"><input type="range" id="rumble-int" min="0" max="100" step="10"><b id="rumble-val"></b><button class="btn sm" id="rumble-test">Tester</button></span>
+        </div>
+        <p class="hint" id="pak-note"></p>
+      </div>
+      <div class="sect">
+        <h3>Stick analogique</h3>
+        <div class="form">
+          <label for="dz">Zone morte</label><span class="range"><input type="range" id="dz" min="0" max="30" step="5"><b id="dz-val"></b></span>
+          <label for="sens">Sensibilité</label><span class="range"><input type="range" id="sens" min="50" max="150" step="5"><b id="sens-val"></b></span>
+        </div>
+        <p class="hint">Le stick N64 d'origine ne va pas jusqu'au bord : 100 % reproduit sa course. Monte la zone morte si Link avance tout seul.</p>
+        <div class="actions"><button class="btn sm primary" id="in-apply" hidden>Appliquer (redémarrage 2 s, partie reprise)</button></div>
+      </div>
+      <div class="sect">
+        <h3>Manette tactile</h3>
+        <div class="form"><label for="touch-sel">Boutons à l'écran</label><select id="touch-sel"><option value="auto">Auto (écran tactile sans manette)</option><option value="on">Toujours</option><option value="off">Jamais</option></select></div>
+        <p class="hint">Sur téléphone ou tablette : stick, A, B, Z, C, L, R et Start à l'écran. Le bouton plein écran passe en mode immersif.</p>
+      </div>
+    </div>
+
+    <div class="tabpane scroll" role="tabpanel" id="pane-codes" aria-labelledby="tab-codes" hidden>
+      <div class="sect">
+        <div class="head" style="margin-bottom:4px"><h3 style="margin:0">Codes GameShark</h3><span class="hint" id="ch-count" style="margin:0"></span></div>
+        <p class="hint" id="ch-src" style="margin-top:0">Insère une cartouche pour voir ses codes.</p>
+        <div class="actions" style="margin:8px 0"><input type="search" id="ch-q" placeholder="Rechercher (rupees, health, moon jump…)" aria-label="Rechercher un code"><button class="btn sm" id="ch-off" hidden>Tout désactiver</button></div>
+        <ul class="cheats" id="ch-list"></ul>
+      </div>
+      <div class="sect">
+        <h3>Ajouter un code</h3>
+        <div class="form">
+          <label for="ch-name">Nom</label><input id="ch-name" placeholder="Bourse infinie">
+          <label for="ch-code">Code</label><textarea id="ch-code" rows="3" placeholder="81118404 03E7"></textarea>
+        </div>
+        <div class="actions" style="margin-top:8px"><button class="btn sm primary" id="ch-add">Ajouter et activer</button></div>
+        <p class="hint">Format GameShark / Action Replay : « XXXXXXXX YYYY », une instruction par ligne. Un code inadapté peut figer le jeu : désactive-le puis recharge un point du filet de sécurité.</p>
+      </div>
+    </div>
+
+    <div class="tabpane scroll" role="tabpanel" id="pane-infos" aria-labelledby="tab-infos" hidden>
+      <div class="sect">
+        <h3>Cartouche</h3>
+        <p class="game-id" id="gameid"></p>
+        <dl class="readout">
+          <dt>Titre interne</dt><dd id="r-name">—</dd>
+          <dt>ID</dt><dd id="r-id">—</dd>
+          <dt>Région</dt><dd id="r-region">—</dd>
+          <dt>Révision</dt><dd id="r-ver">—</dd>
+          <dt>Format</dt><dd id="r-fmt">—</dd>
+          <dt>Taille</dt><dd id="r-size">—</dd>
+          <dt>Puce CIC</dt><dd id="r-cic">—</dd>
+          <dt>CRC1 / CRC2</dt><dd id="r-crc">—</dd>
+          <dt>SHA-1</dt><dd id="r-sha">—</dd>
+        </dl>
+      </div>
+      <div class="sect">
+        <div class="head" style="margin:0"><h3 style="margin:0">Journal technique</h3><button class="btn sm" id="log-copy">Copier le journal</button></div>
+        <ol class="log" id="log" aria-live="polite"></ol>
+      </div>
+      <div class="sect">
+        <h3>Bon à savoir</h3>
+        <ul class="tips">
+          <li><strong>Résolution :</strong> GLideN64 recalcule la 3D à la taille choisie. Une image rendue plus grande que l'écran est aussi lissée (sur-échantillonnage). Pas de MSAA : il exige OpenGL ES 3.1, absent de WebGL 2.</li>
+          <li><strong>Si le jeu gèle :</strong> le journal ci-dessus indique la durée et la cause de chaque à-coup ou gel détecté. « Copier le journal » le met dans le presse-papiers pour le partager.</li>
+          <li><strong>Premières minutes :</strong> chaque nouvel effet compile un shader une fois. Les micro-saccades disparaissent ensuite, et le cache du navigateur les évite à la session suivante.</li>
+          <li><strong>Sauvegarde ou état ?</strong> La sauvegarde du jeu est compatible avec la vraie cartouche ; un état instantané ne marche qu'ici, avec ce même dump.</li>
+        </ul>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<footer>eden64 · EmulatorJS (GPL-3.0) · core libretro mupen64plus-next et GLideN64 (GPL-2.0) compilés en WebAssembly · codes : libretro-database (CC BY-SA 4.0) · polices Chakra Petch et IBM Plex (SIL OFL) · aucune ROM incluse</footer>
+<script src="app.js"></script>
+</body>
+</html>

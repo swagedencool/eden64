@@ -1,0 +1,56 @@
+--- a/emulator/data/emulator.min.js
++++ b/emulator/data/emulator.min.js
+@@ -539,7 +539,7 @@
+         }
+         const gotCore = (data) => {
+             this.defaultCoreOpts = {};
+-            this.checkCompression(new Uint8Array(data), this.localization("Decompress Game Core")).then((data) => {
++            ((typeof window.EJS_unpackCore === "function") ? window.EJS_unpackCore(new Uint8Array(data)) : this.checkCompression(new Uint8Array(data), this.localization("Decompress Game Core"))).then((data) => {
+                 let js, thread, wasm;
+                 for (let k in data) {
+                     if (k.endsWith(".wasm")) {
+@@ -601,6 +601,7 @@
+ 
+             let legacy = (this.supportsWebgl2 && this.webgl2Enabled ? "" : "-legacy");
+             let filename = this.getCore() + (threads ? "-thread" : "") + legacy + "-wasm.data";
++            this.coreVariant = legacy;
+             if (!this.debug) {
+                 const result = await this.storage.core.get(filename);
+                 if (result && result.version === rep.buildStart) {
+@@ -638,7 +639,7 @@
+     }
+     initGameCore(js, wasm, thread) {
+         let script = this.createElement("script");
+-        script.src = URL.createObjectURL(new Blob([js], { type: "application/javascript" }));
++        script.src = (typeof window.EJS_coreScriptBase === "string") ? window.EJS_coreScriptBase + this.getCore() + (this.coreVariant || "") + ".js" : URL.createObjectURL(new Blob([js], { type: "application/javascript" }));
+         script.addEventListener("load", () => {
+             this.initModule(wasm, thread);
+         });
+@@ -938,6 +939,9 @@
+         }
+         window.EJS_Runtime({
+             noInitialRun: true,
++            wasmBinary: wasmData,
++            preMainLoop: () => (typeof window.EJS_preFrame === "function" ? window.EJS_preFrame() : undefined),
++            postMainLoop: () => { if (typeof window.EJS_postFrame === "function") window.EJS_postFrame(); },
+             onRuntimeInitialized: null,
+             arguments: [],
+             preRun: [],
+@@ -6558,7 +6562,7 @@
+         window.clearTimeout(this.timeout);
+     }
+     getGamepads() {
+-        return navigator.getGamepads ? navigator.getGamepads() : (navigator.webkitGetGamepads ? navigator.webkitGetGamepads() : []);
++        try { return (navigator.getGamepads ? navigator.getGamepads() : (navigator.webkitGetGamepads ? navigator.webkitGetGamepads() : [])) || []; } catch (e) { return []; }
+     }
+     loop() {
+         this.updateGamepadState();
+@@ -6846,7 +6850,7 @@
+             "slowmotion_ratio = 3.0\n" +
+             (this.EJS.rewindEnabled ? "rewind_enable = true\n" : "") +
+             (this.EJS.rewindEnabled ? "rewind_granularity = 6\n" : "") +
+-            "savefile_directory = \"/data/saves\"\n";
++            "savefile_directory = \"/data/saves\"\n" + (window.EJS_retroarchExtra || "");
+ 
+         if (this.EJS.retroarchOpts && Array.isArray(this.EJS.retroarchOpts)) {
+             this.EJS.retroarchOpts.forEach(option => {
