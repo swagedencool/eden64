@@ -1,7 +1,8 @@
-﻿# eden64 : mini serveur HTTP local, sans aucune installation (PowerShell intégré à Windows)
+# eden64 : mini serveur HTTP local, sans aucune installation (PowerShell intégré à Windows)
 # Sert ce dossier sur http://localhost:8064 avec les en-têtes d'isolation cross-origin (COOP/COEP).
 $ErrorActionPreference = 'Stop'
-$root = $PSScriptRoot
+$root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\web'))
+$roms = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\roms'))
 $mime = @{
   '.html' = 'text/html; charset=utf-8'; '.js' = 'text/javascript; charset=utf-8'; '.mjs' = 'text/javascript; charset=utf-8'
   '.css' = 'text/css; charset=utf-8'; '.json' = 'application/json; charset=utf-8'; '.wasm' = 'application/wasm'
@@ -37,7 +38,7 @@ while ($listener.IsListening) {
     if ($path.EndsWith('/')) { $path += 'index.html' }
     if ($path -eq '/roms/index.json') {
       # Ludothèque locale : liste des dumps déposés dans roms\ (jamais publiés avec le site)
-      $romDir = Join-Path $root 'roms'
+      $romDir = $roms
       if (-not (Test-Path $romDir)) { New-Item -ItemType Directory -Path $romDir | Out-Null }
       $items = @(Get-ChildItem -LiteralPath $romDir -File | Where-Object { $_.Extension -match '^\.(z64|n64|v64|zip)$' } | ForEach-Object { [ordered]@{ file = $_.Name; size = $_.Length } })
       $json = if ($items.Count -eq 0) { '[]' } else { ConvertTo-Json -InputObject $items -Compress -Depth 3 }
@@ -51,12 +52,14 @@ while ($listener.IsListening) {
       Write-Host ("  200 GET /roms/index.json ({0} jeu(x))" -f $items.Count)
       continue
     }
-    $full = [IO.Path]::GetFullPath([IO.Path]::Combine($root, $path.TrimStart('/').Replace('/', '\')))
+    $dir = if ($path.StartsWith('/roms/')) { $roms } else { $root }
+    $rel = if ($path.StartsWith('/roms/')) { $path.Substring(6) } else { $path.TrimStart('/') }
+    $full = [IO.Path]::GetFullPath([IO.Path]::Combine($dir, $rel.Replace('/', '\')))
     $res.Headers.Add('Cross-Origin-Opener-Policy', 'same-origin')
     $res.Headers.Add('Cross-Origin-Embedder-Policy', 'require-corp')
     $res.Headers.Add('Cross-Origin-Resource-Policy', 'same-origin')
     $res.Headers.Add('Cache-Control', 'no-cache')
-    if (-not $full.StartsWith($root + '\', [StringComparison]::OrdinalIgnoreCase) -or -not [IO.File]::Exists($full)) {
+    if (-not $full.StartsWith($dir + '\', [StringComparison]::OrdinalIgnoreCase) -or -not [IO.File]::Exists($full)) {
       $res.StatusCode = 404
       $bytes = [Text.Encoding]::UTF8.GetBytes('404')
       $res.ContentType = 'text/plain; charset=utf-8'

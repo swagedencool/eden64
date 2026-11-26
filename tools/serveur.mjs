@@ -1,11 +1,12 @@
 // eden64 — serveur local alternatif pour qui a Node.js (Windows, macOS, Linux)
-// Usage : node serveur.mjs   puis ouvrir http://localhost:8064
+// Usage : node tools/serveur.mjs   puis ouvrir http://localhost:8064
 import { createServer } from 'node:http';
 import { readFile, stat, readdir, mkdir } from 'node:fs/promises';
 import { extname, join, normalize, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const root = fileURLToPath(new URL('.', import.meta.url));
+const root = fileURLToPath(new URL('../web/', import.meta.url));
+const roms = fileURLToPath(new URL('../roms/', import.meta.url));
 const port = Number(process.env.PORT) || 8064;
 const types = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
@@ -24,11 +25,11 @@ createServer(async (req, res) => {
     let path = decodeURIComponent(new URL(req.url, 'http://x').pathname);
     if (path === '/roms/index.json') {
       // Ludothèque locale : liste des dumps déposés dans roms/ (jamais publiés avec le site)
-      await mkdir(join(root, 'roms'), { recursive: true });
+      await mkdir(roms, { recursive: true });
       const list = [];
-      for (const f of await readdir(join(root, 'roms'))) {
+      for (const f of await readdir(roms)) {
         if (!/\.(z64|n64|v64|zip)$/i.test(f)) continue;
-        const st = await stat(join(root, 'roms', f));
+        const st = await stat(join(roms, f));
         if (st.isFile()) list.push({ file: f, size: st.size });
       }
       const body = JSON.stringify(list);
@@ -36,8 +37,9 @@ createServer(async (req, res) => {
       return res.end(body);
     }
     if (path.endsWith('/')) path += 'index.html';
-    const file = normalize(join(root, path));
-    if (!file.startsWith(normalize(root + sep))) throw new Error('hors racine');
+    const [dir, rel] = path.startsWith('/roms/') ? [roms, path.slice(6)] : [root, path];
+    const file = normalize(join(dir, rel));
+    if (!file.startsWith(normalize(dir + sep))) throw new Error('hors racine');
     const info = await stat(file);
     if (!info.isFile()) throw new Error('pas un fichier');
     res.writeHead(200, { 'Content-Type': types[extname(file).toLowerCase()] || 'application/octet-stream', 'Content-Length': info.size });

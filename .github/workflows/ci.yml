@@ -11,6 +11,6 @@ jobs:
       - name: Aucun dump de jeu dans le dépôt
         run: "! git ls-files | grep -iE '\\.(z64|n64|v64|gb|gbc|srm|sav|state)$'"
       - name: Syntaxe
-        run: node --check app.js && node --check serveur.mjs
+        run: node --check web/app.js && node --check tools/serveur.mjs
       - name: Test de fumée
         run: node tests/smoke.mjs

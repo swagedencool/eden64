@@ -1,9 +1,9 @@
-﻿eden64 - émulateur Nintendo 64 local
+eden64 - émulateur Nintendo 64 local
 ====================================
 
 Lancer
 ------
-1. Double-clique sur Lancer.bat.
+1. Double-clique sur tools\Lancer.bat.
    Une fenêtre noire s'ouvre (le serveur) et ton navigateur affiche http://localhost:8064.
 2. Dépose tes dumps (.z64, .n64, .v64 ou .zip) dans le dossier roms\ :
    ils apparaissent dans la Ludothèque, à gauche, prêts en un clic (bouton rouge = jouer).
@@ -15,7 +15,7 @@ Le dossier roms\ est privé : ne le publie jamais avec le site.
 5. Pour arrêter : ferme la fenêtre noire.
 
 Alternative si tu as Node.js : ouvre un terminal dans ce dossier et tape
-   node serveur.mjs
+   node tools/serveur.mjs
 
 Touches (onglet « Touches », tout est réassignable)
 ---------------------------------------------------

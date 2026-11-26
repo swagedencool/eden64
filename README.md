@@ -6,55 +6,93 @@
 </p>
 
 <p align="center">
-  Émulateur Nintendo 64 qui tourne dans le navigateur (WebAssembly). Rien à installer, pas de compte : tes jeux et tes sauvegardes restent sur ton appareil.<br>
-  <a href="https://eden64.netlify.app"><b>Essayer</b></a> · <a href="https://edenbourezg.myportfolio.com/eden64">Présentation du projet</a> · <a href="LISEZMOI.txt">Manuel</a>
+  Un émulateur Nintendo 64 qui tourne dans le navigateur, sur ordinateur comme sur téléphone. Rien à installer, aucun compte : tes cartouches et tes sauvegardes restent sur ton appareil.<br>
+  <a href="https://eden64.netlify.app"><b>Jouer</b></a> · <a href="docs/MANUEL.md">Manuel</a> · <a href="docs/TECHNIQUE.md">Notes techniques</a>
 </p>
 
 <p align="center">
-  <a href="../../actions/workflows/ci.yml"><img src="../../actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="../../actions/workflows/ci.yml"><img src="https://github.com/swagedencool/eden64/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <img src="https://img.shields.io/badge/licence-GPL--3.0-blue" alt="GPL-3.0">
+  <img src="https://img.shields.io/badge/test%C3%A9-Ocarina%20of%20Time-d22f27" alt="Testé sur Ocarina of Time">
 </p>
 
-![eden64](docs/screenshot.png)
+![eden64 : Ocarina of Time en marche, avec la ludothèque et la sauvegarde](docs/images/jeu.webp)
+
+> Testé de bout en bout avec **The Legend of Zelda: Ocarina of Time** (version européenne). Les autres jeux passent par les mêmes moteurs, mais n'ont pas tous été essayés.
 
 ## Fonctionnalités
 
-- **Deux moteurs, choisis selon l'appareil :** mupen64plus-next + GLideN64 (jusqu'à 2560×1920, 16:9 natif, textures améliorées) ou ParaLLEl-N64 pour les téléphones et les petites machines (~300 Mo au lieu de ~900 Mo).
-- **Sauvegardes :** gardées dans le navigateur ; import/export `.srm .sra .fla .eep .mpk` (ordre des octets détecté) ; 3 emplacements d'état ; filet de sécurité toutes les 2 min et avant chaque chargement.
-- **Accessoires :** Controller Pak, Rumble Pak (vibration de la vraie manette), Transfer Pak avec cartouche et sauvegarde Game Boy (Pokémon Stadium…), choisis automatiquement selon le jeu.
-- **Commandes :** touches clavier et manette réassignables (combinaisons comprises), manettes détectées automatiquement, manette tactile sur mobile.
-- **En plus :** codes GameShark pour 742 jeux, captures PNG, clips MP4 avec le son, partitions d'ocarina, plein écran.
-- **Régulateur de performance :** détecte la machine, trouve la cause des ralentissements et propose un réglage plus léger en un clic.
+### Tes parties ne se perdent pas
 
-## Lancer
+La sauvegarde du jeu est gardée dans le navigateur, comme sur la vraie cartouche. Elle s'importe et s'exporte (`.srm`, `.sra`, `.fla`, `.eep`, `.mpk`), et l'ordre des octets est détecté tout seul. Trois emplacements d'état permettent de reprendre exactement où tu étais, et le **filet de sécurité** prend un point de retour toutes les 2 minutes et avant chaque chargement.
 
-- **En ligne :** [eden64.netlify.app](https://eden64.netlify.app), puis *Ajouter une cartouche*.
-- **Windows :** double-clique sur `Lancer.bat`, puis ouvre http://localhost:8064.
-- **Tout système (Node 18+) :** `node serveur.mjs`.
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/partie.webp" alt="Sauvegarde du jeu, états instantanés et filet de sécurité"></td>
+    <td width="50%"><img src="docs/images/infos.webp" alt="Infos de la cartouche et journal technique"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Sauvegarde, états instantanés et filet de sécurité</sub></td>
+    <td align="center"><sub>La cartouche reconnue, et le journal pour comprendre un souci</sub></td>
+  </tr>
+</table>
 
-Dépose tes dumps dans `roms/` pour les voir dans la ludothèque. Aucun jeu n'est fourni : utilise les dumps de tes propres cartouches. `roms/` est ignoré par Git et la CI échoue si un dump est ajouté au dépôt.
+### Une belle image, même sur une petite machine
 
-## Déployer
+Deux moteurs : **mupen64plus-next + GLideN64** (jusqu'à 2560×1920, 16:9 natif, textures améliorées) et **ParaLLEl-N64** pour les téléphones et les petites configurations (~300 Mo de mémoire au lieu de ~900 Mo). eden64 choisit selon l'appareil. S'il ralentit, il cherche la cause (économiseur d'énergie, rendu sans carte graphique, processeur saturé) et propose un réglage plus léger en un clic.
 
-Site statique, sans étape de build. Sur Netlify, importe ce dépôt : `netlify.toml` publie la racine et `_headers` pose COOP/COEP et la CSP.
+<p align="center"><img src="docs/images/image.webp" alt="Qualité d'image et performance" width="80%"></p>
+
+### À ta main : manette, clavier, tactile
+
+Toutes les touches se changent, au clavier (AZERTY ou QWERTY) comme à la manette, combinaisons comprises. Les manettes sont détectées toutes seules, la **vibration** passe par la vraie manette, et une manette tactile s'affiche sur téléphone. L'accessoire est choisi selon le jeu : carte mémoire, Rumble Pak ou **Transfer Pak** avec ta cartouche Game Boy (Pokémon Stadium, Mario Golf…).
+
+<p align="center"><img src="docs/images/touches.webp" alt="Réglage des touches de la manette" width="80%"></p>
+
+### Codes, ocarina, captures
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/codes.webp" alt="Codes GameShark d'Ocarina of Time"></td>
+    <td width="50%"><img src="docs/images/ocarina.webp" alt="Partitions d'ocarina"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Codes GameShark pour 742 jeux, reconnus par l'empreinte de la cartouche</sub></td>
+    <td align="center"><sub>Les 12 mélodies avec tes touches, la mélodie jouée est reconnue</sub></td>
+  </tr>
+</table>
+
+Captures PNG et clips vidéo MP4 avec le son, en un clic ou un raccourci, et un mode plein écran.
+
+## Jouer
+
+1. Va sur **[eden64.netlify.app](https://eden64.netlify.app)**.
+2. *Ajouter une cartouche* : choisis ton dump (`.z64`, `.n64`, `.v64` ou `.zip`). Il reste dans ta ludothèque.
+3. *Allumer*, ou A / Start à la manette.
+
+En local : `node tools/serveur.mjs` (ou `tools\Lancer.bat` sous Windows, sans rien installer), puis http://localhost:8064. Les dumps déposés dans `roms/` apparaissent dans la ludothèque.
+
+Aucun jeu n'est fourni : utilise les dumps de tes propres cartouches.
 
 ## Fonctionnement
 
-- [EmulatorJS 4.2.3](https://github.com/EmulatorJS/EmulatorJS) avec un petit patch ([emulator/emulatorjs-4.2.3.patch](emulator/emulatorjs-4.2.3.patch)) qui ajoute des points d'accroche : chargement du core brut, rappels à chaque image, configuration RetroArch supplémentaire.
-- Les cores sont livrés décompressés (versions WebGL 2 et WebGL 1). Leur mémoire WebAssembly initiale est réduite au chargement pour que les téléphones puissent l'allouer.
-- Vibration : le rappel de vibration du core est redirigé vers un mini module WebAssembly écrit à la main, qui appelle l'API de vibration des manettes.
-- Tout le reste est du JavaScript simple dans `app.js`. Pas de framework, pas de bundler.
+- **Site statique**, sans serveur ni compte : tout tourne dans le navigateur, en WebAssembly.
+- **Émulateur** : [EmulatorJS](https://github.com/EmulatorJS/EmulatorJS) et les cœurs libretro mupen64plus-next et ParaLLEl-N64, avec un petit patch qui ouvre des points d'accroche.
+- Le reste est du JavaScript simple dans `web/app.js`, sans framework ni bundler. Détails : [docs/TECHNIQUE.md](docs/TECHNIQUE.md).
 
 ## Développement
 
 ```sh
-node tests/smoke.mjs                                     # lance le site et vérifie chaque fichier (aucune dépendance)
-python tools/build_cheats.py <libretro-database> cheats  # régénère les codes de triche
+node tools/serveur.mjs                     # le site en local : http://localhost:8064
+node tests/smoke.mjs                       # vérifie que chaque fichier du site est servi (aucune dépendance)
+python tools/build_cheats.py <libretro-database>   # régénère les codes dans web/cheats/
 ```
+
+Chaque envoi sur `main` lance la [CI](.github/workflows/ci.yml) : syntaxe, test de fumée, et refus de tout dump ou sauvegarde dans le dépôt. Netlify publie le dossier `web/` ([netlify.toml](netlify.toml)).
 
 ## Licence
 
 eden64 est sous GPL-3.0, comme EmulatorJS. Composants tiers : [THIRD_PARTY.md](THIRD_PARTY.md).
-Projet non affilié à Nintendo. Nintendo 64 est une marque de Nintendo.
+Projet de fan, sans lien avec Nintendo. Nintendo 64 et The Legend of Zelda sont des marques de Nintendo.
 
 Design et développement : [Eden Bourezg](https://edenbourezg.myportfolio.com).

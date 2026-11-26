@@ -1,8 +1,8 @@
 # Régénère cheats/ depuis libretro-database (codes .cht, CC BY-SA 4.0) et le DAT No-Intro N64.
-# Usage : python tools/build_cheats.py <chemin/libretro-database> [cheats]
+# Usage : python tools/build_cheats.py <chemin/libretro-database> [web/cheats]
 import os, re, json, hashlib, sys
 DB = sys.argv[1]  # clone de github.com/libretro/libretro-database
-OUT = sys.argv[2] if len(sys.argv) > 2 else 'cheats'
+OUT = sys.argv[2] if len(sys.argv) > 2 else 'web/cheats'
 chtdir = DB + '/cht/Nintendo - Nintendo 64'
 names = {f[:-4] for f in os.listdir(chtdir) if f.endswith('.cht')}
 dat = open(DB + '/metadat/no-intro/Nintendo - Nintendo 64.dat', encoding='utf-8', errors='replace').read()

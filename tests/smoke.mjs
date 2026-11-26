@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 const root = new URL('../', import.meta.url);
 const port = 18064;
 const base = `http://localhost:${port}/`;
-const srv = spawn(process.execPath, [fileURLToPath(new URL('serveur.mjs', root))], { env: { ...process.env, PORT: String(port) }, stdio: 'ignore' });
+const srv = spawn(process.execPath, [fileURLToPath(new URL('tools/serveur.mjs', root))], { env: { ...process.env, PORT: String(port) }, stdio: 'ignore' });
 const get = (p) => fetch(base + p);
 
 try {
@@ -42,8 +42,8 @@ try {
   assert.equal((await get('..%2f..%2fetc%2fpasswd')).status, 404);
 
   // Le moteur embarqué contient bien chaque ligne ajoutée par le patch
-  const js = await readFile(new URL('emulator/data/emulator.min.js', root), 'utf8');
-  const patch = await readFile(new URL('emulator/emulatorjs-4.2.3.patch', root), 'utf8');
+  const js = await readFile(new URL('web/emulator/data/emulator.min.js', root), 'utf8');
+  const patch = await readFile(new URL('web/emulator/emulatorjs-4.2.3.patch', root), 'utf8');
   for (const l of patch.split('\n')) if (l.startsWith('+') && !l.startsWith('+++')) assert.ok(js.includes(l.slice(1)), 'patch absent : ' + l);
 
   console.log(`ok : ${paths.length} fichiers servis, ${Object.keys(cheats.games).length} jeux avec codes, patch EmulatorJS présent`);
