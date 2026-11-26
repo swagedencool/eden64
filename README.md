@@ -16,7 +16,7 @@
   <img src="https://img.shields.io/badge/test%C3%A9-Ocarina%20of%20Time-d22f27" alt="Testé sur Ocarina of Time">
 </p>
 
-![eden64 : Ocarina of Time en marche, avec la ludothèque et la sauvegarde](docs/images/jeu.webp)
+![Ocarina of Time dans eden64 : Link au Temple du Temps](docs/images/jeu.webp)
 
 > Testé de bout en bout avec **The Legend of Zelda: Ocarina of Time** (version européenne). Les autres jeux passent par les mêmes moteurs, mais n'ont pas tous été essayés.
 
@@ -26,43 +26,24 @@
 
 La sauvegarde du jeu est gardée dans le navigateur, comme sur la vraie cartouche. Elle s'importe et s'exporte (`.srm`, `.sra`, `.fla`, `.eep`, `.mpk`), et l'ordre des octets est détecté tout seul. Trois emplacements d'état permettent de reprendre exactement où tu étais, et le **filet de sécurité** prend un point de retour toutes les 2 minutes et avant chaque chargement.
 
-<table>
-  <tr>
-    <td width="50%"><img src="docs/images/partie.webp" alt="Sauvegarde du jeu, états instantanés et filet de sécurité"></td>
-    <td width="50%"><img src="docs/images/infos.webp" alt="Infos de la cartouche et journal technique"></td>
-  </tr>
-  <tr>
-    <td align="center"><sub>Sauvegarde, états instantanés et filet de sécurité</sub></td>
-    <td align="center"><sub>La cartouche reconnue, et le journal pour comprendre un souci</sub></td>
-  </tr>
-</table>
-
 ### Une belle image, même sur une petite machine
 
 Deux moteurs : **mupen64plus-next + GLideN64** (jusqu'à 2560×1920, 16:9 natif, textures améliorées) et **ParaLLEl-N64** pour les téléphones et les petites configurations (~300 Mo de mémoire au lieu de ~900 Mo). eden64 choisit selon l'appareil. S'il ralentit, il cherche la cause (économiseur d'énergie, rendu sans carte graphique, processeur saturé) et propose un réglage plus léger en un clic.
 
-<p align="center"><img src="docs/images/image.webp" alt="Qualité d'image et performance" width="80%"></p>
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/titre.webp" alt="L'écran-titre d'Ocarina of Time dans eden64"></td>
+    <td width="50%"><img src="docs/images/link.webp" alt="Link au Temple du Temps, rendu en haute définition"></td>
+  </tr>
+</table>
 
 ### À ta main : manette, clavier, tactile
 
 Toutes les touches se changent, au clavier (AZERTY ou QWERTY) comme à la manette, combinaisons comprises. Les manettes sont détectées toutes seules, la **vibration** passe par la vraie manette, et une manette tactile s'affiche sur téléphone. L'accessoire est choisi selon le jeu : carte mémoire, Rumble Pak ou **Transfer Pak** avec ta cartouche Game Boy (Pokémon Stadium, Mario Golf…).
 
-<p align="center"><img src="docs/images/touches.webp" alt="Réglage des touches de la manette" width="80%"></p>
-
 ### Codes, ocarina, captures
 
-<table>
-  <tr>
-    <td width="50%"><img src="docs/images/codes.webp" alt="Codes GameShark d'Ocarina of Time"></td>
-    <td width="50%"><img src="docs/images/ocarina.webp" alt="Partitions d'ocarina"></td>
-  </tr>
-  <tr>
-    <td align="center"><sub>Codes GameShark pour 742 jeux, reconnus par l'empreinte de la cartouche</sub></td>
-    <td align="center"><sub>Les 12 mélodies avec tes touches, la mélodie jouée est reconnue</sub></td>
-  </tr>
-</table>
-
-Captures PNG et clips vidéo MP4 avec le son, en un clic ou un raccourci, et un mode plein écran.
+GameShark : codes pour 742 jeux, reconnus par l'empreinte de la cartouche. Partitions d'ocarina : les 12 mélodies avec tes touches, et la mélodie jouée est reconnue. Captures PNG et clips vidéo MP4 avec le son, en un clic ou un raccourci, et un mode plein écran.
 
 ## Jouer
 
