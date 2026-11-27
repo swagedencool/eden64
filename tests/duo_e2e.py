@@ -45,9 +45,11 @@ async def main():
         y = await ctx.new_page(); await y.goto(f'{URL}?duo=local&salle={code}#Lucas')
         await until(x, "document.querySelector('#duo-status').textContent.startsWith('Lucas est connecté')")
         await until(y, "document.querySelector('#duo-status').textContent.startsWith('Eden est connecté')")
+        await y.close(); await until(x, "document.querySelector('#duo-status').textContent.startsWith('En attente')", 10)  # départ vu tout de suite
         if STATE:  # le vrai modèle de Link, posé là où se tient le mien
             await h.evaluate("""async (n) => { const gz = new Uint8Array(await (await fetch('roms/' + n)).arrayBuffer()); EJS_emulator.gameManager.loadState(new Uint8Array(await new Response(new Blob([gz]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer())); }""", STATE)
-            await h.click('#duo-create-ens'); await h.evaluate("duo.room.peer = 'test'")
+            await h.click('#duo-create-ens')
+            await h.evaluate("duo.room.peer = 'test'; setInterval(() => { duo.ghost.seen = performance.now(); }, 300)")  # ami fictif qui donne des nouvelles
             await until(h, "!!duo.readMe() && !!duo.readMe().j")
             for _ in range(3): await h.evaluate("duo.feed(duo.readMe())"); await asyncio.sleep(0.3)
             await until(h, "[...document.querySelectorAll('.duo-layer')].filter((c) => !c.hidden).length === 2")

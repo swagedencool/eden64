@@ -78,6 +78,7 @@ export function linkRenderer(canvas) {
     const u = {}; for (const n of ['uVP', 'uWorld', 'uBones', 'uK', 'uLit', 'uTex', 'uPrim', 'uEnv']) u[n] = gl.getUniformLocation(p, n);
     const r = { p, u }; progs.set(key, r); return r;
   };
+  let limbsKey = 0, limbs = [];
   const white = gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, white); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([255, 255, 255, 255]));
 
@@ -159,9 +160,16 @@ export function linkRenderer(canvas) {
   const S = (s) => new Float32Array([s, 0, 0, 0, 0, s, 0, 0, 0, 0, s, 0, 0, 0, 0, 1]);
   const R = (ax, v) => { const a = (v / 32768) * Math.PI, c = Math.cos(a), s = Math.sin(a); return ax === 'x' ? new Float32Array([1, 0, 0, 0, 0, c, s, 0, 0, -s, c, 0, 0, 0, 0, 1]) : ax === 'y' ? new Float32Array([c, 0, -s, 0, 0, 1, 0, 0, s, 0, c, 0, 0, 0, 0, 1]) : new Float32Array([c, s, 0, 0, -s, c, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]); };
 
-  return function draw(m, seg, f, VP, k, tint) {
-    const pl = m.u32(m.play + 0x1C44), sk = m.u32(pl + 0x1A4 + 4), limbs = [];
-    for (let i = 0; i < 22; i++) { const L = seg(m.u32(sk + i * 4)); limbs.push({ x: m.s16(L), y: m.s16(L + 2), z: m.s16(L + 4), child: m.u8(L + 6), sib: m.u8(L + 7), dl: m.u32(L + 8) }); }
+  // list : [{ f: pose, tint, depth }] ; depth = dessiné seulement dans la profondeur (mon Link, qui doit cacher l'ami)
+  return function draw(m, seg, list, VP, k) {
+    const pl = m.u32(m.play + 0x1C44), sk = m.u32(pl + 0x1A4 + 4);
+    if (sk !== limbsKey) { // squelette relu seulement s'il change (en pause, sa mémoire peut servir à autre chose)
+      limbsKey = sk; limbs = [];
+      for (let i = 0; i < 22; i++) { const L = seg(m.u32(sk + i * 4)); limbs.push({ x: m.s16(L), y: m.s16(L + 2), z: m.s16(L + 4), child: m.u8(L + 6), sib: m.u8(L + 7), dl: m.u32(L + 8) }); }
+    }
+    gl.viewport(0, 0, canvas.width, canvas.height); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    gl.enable(gl.DEPTH_TEST);
+    for (const { f, tint, depth } of list) {
     const bones = [], order = [], j = f.j;
     const walk = (i, parent) => {
       const L = limbs[i], p = i === 0 ? [j[0], j[1], j[2]] : [L.x, L.y, L.z], r = 3 + i * 3;
@@ -172,19 +180,20 @@ export function linkRenderer(canvas) {
     };
     walk(0, S(1));
     const world = mul(mul(T(f.x, f.y, f.z), R('y', f.r)), S(0.01));
-    gl.viewport(0, 0, canvas.width, canvas.height); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    gl.enable(gl.DEPTH_TEST);
+    gl.colorMask(!depth, !depth, !depth, !depth);
     const flat = new Float32Array(24 * 16); bones.forEach((b, i) => flat.set(b, i * 16));
     for (const o of order) for (const g of mesh(m, seg, o.dl, o.bone)) {
       const { p, u } = g.prog;
       gl.useProgram(p);
       gl.uniformMatrix4fv(u.uVP, false, VP); gl.uniformMatrix4fv(u.uWorld, false, world); gl.uniformMatrix4fv(u.uBones, false, flat);
-      gl.uniform1f(u.uK, k); gl.uniform1f(u.uLit, g.lit); gl.uniform4fv(u.uPrim, g.prim); gl.uniform4fv(u.uEnv, g.env || tint);
+      gl.uniform1f(u.uK, k); gl.uniform1f(u.uLit, g.lit); gl.uniform4fv(u.uPrim, g.prim); gl.uniform4fv(u.uEnv, g.env || tint || [1, 1, 1, 1]);
       gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, g.tex); gl.uniform1i(u.uTex, 0);
       if (g.cull) { gl.enable(gl.CULL_FACE); gl.cullFace(g.cull & 0x400 ? gl.BACK : gl.FRONT); } else gl.disable(gl.CULL_FACE);
       gl.bindBuffer(gl.ARRAY_BUFFER, g.buf);
       [[0, 3, 0], [1, 4, 12], [2, 2, 28], [3, 1, 36]].forEach(([i, n, off]) => { gl.enableVertexAttribArray(i); gl.vertexAttribPointer(i, n, gl.FLOAT, false, 40, off); });
       gl.drawArrays(gl.TRIANGLES, 0, g.n);
     }
+    }
+    gl.colorMask(true, true, true, true);
   };
 }

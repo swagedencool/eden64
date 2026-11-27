@@ -113,47 +113,64 @@ async function bootWords() {
     : magic === 0x40123780 ? (((v & 0xff) << 24) | ((v & 0xff00) << 8) | ((v >>> 8) & 0xff00) | (v >>> 24)) >>> 0 : v); // .n64
   return [0, 4, 8, 12].map((o) => fix(b.getUint32(0x1000 + o)));
 }
-let mem = null, memTry = 0;
+let mem = null, memTry = 0, ramMod = null, ramBusy = false, lastPose = null;
+// La RAM est cherchée une seule fois par partie, par tranches de 16 Mo : le jeu ne se fige jamais
 async function findRam() {
-  if (Date.now() - memTry < 2000) return null;
-  memTry = Date.now();
-  const want = await bootWords(), H = em().Module.HEAPU8, W = new Uint32Array(H.buffer, 0, H.buffer.byteLength >> 2);
-  const found = [];
-  for (let i = 0x100; i < W.length - 4; i++) {
-    if (W[i] !== want[0] || W[i + 1] !== want[1] || W[i + 2] !== want[2] || W[i + 3] !== want[3]) continue;
-    const r = ram(i * 4 - 0x400), play = findPlay(r);
-    if (play) found.push({ ...r, play, t: r.u32(play + OOT.frames) });
-  }
-  // Une copie figée de la RAM peut aussi exister (états instantanés) : on garde celle dont le compteur d'images avance
-  await new Promise((res) => setTimeout(res, 120));
-  return found.find((r) => r.u32(r.play + OOT.frames) !== r.t) || null;
+  if (ramBusy || Date.now() - memTry < 3000) return null;
+  ramBusy = true; memTry = Date.now();
+  try {
+    const Mod = em().Module, want = await bootWords(), hits = [], step = 1 << 22;
+    for (let i0 = 0x100; ; i0 += step) {
+      const W = new Uint32Array(Mod.HEAPU8.buffer), end = Math.min(W.length - 4, i0 + step);
+      if (i0 >= end) break;
+      for (let i = i0; i < end; i++) if (W[i] === want[0] && W[i + 1] === want[1] && W[i + 2] === want[2] && W[i + 3] === want[3]) hits.push(i * 4 - 0x400);
+      await new Promise((r) => setTimeout(r, 0));
+    }
+    // Une copie figée de la RAM peut aussi exister (états instantanés) : on garde celle dont le compteur d'images avance
+    const rs = hits.map((h) => ({ ...ram(h), play: 0, known: false }));
+    for (let n = 0; n < 8; n++) {
+      const t0 = rs.map((r) => (playOk(r) ? r.u32(r.play + OOT.frames) : null));
+      await new Promise((r) => setTimeout(r, 250));
+      const live = rs.find((r, i) => t0[i] !== null && playOk(r) && r.u32(r.play + OOT.frames) !== t0[i]);
+      if (live) return live;
+    }
+    return null;
+  } finally { ramBusy = false; }
+}
+// PlayState : adresse connue vérifiée à chaque fois (rapide) ; recherche complète rare, seulement pour une autre version du jeu
+function playOk(r = mem) {
+  if (r.play && isPlay(r, r.play)) return true;
+  for (const g of KNOWN_PLAY) if (isPlay(r, g)) { r.play = g; r.known = true; return true; }
+  if (r.known || Date.now() - (r.tried || 0) < 5000) return false; // chaque copie de la RAM a son propre délai
+  r.tried = Date.now(); r.play = findPlay(r);
+  return !!r.play;
 }
 function readMe() {
-  if (!mem) return null;
-  if (!isPlay(mem, mem.play)) { mem = null; return null; }
-  const p = mem.u32(mem.play + OOT.player);
-  return { sc: mem.s16(mem.play + OOT.scene), x: mem.f32(p + 0x24), y: mem.f32(p + 0x28), z: mem.f32(p + 0x2C), r: mem.s16(p + 0xB6), ...readPose(mem, p) };
+  if (!mem || !playOk()) return null;
+  const p = mem.u32(mem.play + OOT.player), pose = readPose(mem, p);
+  if (pose) lastPose = pose; // en pause (Start), la pose n'est pas lisible un instant : on garde la dernière
+  return { sc: mem.s16(mem.play + OOT.scene), x: mem.f32(p + 0x24), y: mem.f32(p + 0x28), z: mem.f32(p + 0x2C), r: mem.s16(p + 0xB6), ...(pose || lastPose) };
 }
 // Position envoyée par l'autre navigateur : on ne garde que des nombres plausibles
 const validPos = (m) => Number.isInteger(m.sc) && m.sc >= 0 && m.sc < 0x80 && [m.x, m.y, m.z, m.r].every((v) => Number.isFinite(v) && Math.abs(v) < 1e5) && (m.j === undefined || validPose(m));
 
 /* ---------- L'ami dans ton monde : projeté avec la caméra du jeu, dessiné par-dessus l'image ---------- */
-const ghost = { samples: [], name: 'Ton ami', title: '', tunic: 'violet', ingame: false, react: null };
-let layer = null, glLayer = null, drawLink = null;
+const ghost = { samples: [], off: null, seen: 0, name: 'Ton ami', title: '', tunic: 'violet', ingame: false, react: null };
+let layer = null, glLayer = null, drawLink = null, lastSegs = null;
 // Segments N64 utilisés par le modèle de Link : 6 son objet, 4 gameplay_keep, 8 et 9 yeux et bouche (en tête de l'objet)
 function segs() {
   const slot = (want) => { for (let i = 0; i < 19; i++) { const s = mem.play + 0x117A4 + 0xC + i * 0x44; if (want(mem.s16(s))) return { id: mem.s16(s), base: mem.u32(s + 4) }; } return null; };
   const link = slot((id) => id === 0x14 || id === 0x15), keep = slot((id) => id === 1);
-  if (!link || !keep) return null;
+  if (!link || !keep) return lastSegs; // en pause, l'objet de Link peut manquer un instant
   const base = { 4: keep.base, 6: link.base, 8: link.base, 9: link.base + 0x4000 };
-  return { id: link.id, seg: (a) => (a >= 0x80000000 ? a : (base[a >>> 24] || 0) + (a & 0xffffff)) };
+  return (lastSegs = { id: link.id, seg: (a) => (a >= 0x80000000 ? a : (base[a >>> 24] || 0) + (a & 0xffffff)) });
 }
 function project(x, y, z, M, k) {
   const X = M[0] * x + M[4] * y + M[8] * z + M[12], Y = M[1] * x + M[5] * y + M[9] * z + M[13], W = M[3] * x + M[7] * y + M[11] * z + M[15];
   return { x: 0.5 + 0.5 * k * X / Math.abs(W || 1e-6), y: 0.5 - 0.5 * Y / Math.abs(W || 1e-6), w: W };
 }
 function friendNow() {
-  const s = ghost.samples, t = performance.now() - 100; // rejoué avec 100 ms de retard, sans à-coups
+  const s = ghost.samples, t = performance.now() - 70; // horodaté par l'ami, rejoué avec 70 ms de marge : fluide malgré le réseau
   if (!s.length) return null;
   let i = s.length - 1;
   while (i > 0 && s[i - 1].t > t) i--;
@@ -168,7 +185,7 @@ function friendNow() {
 function drawGhost() {
   requestAnimationFrame(drawGhost);
   const c = em() && em().canvas, show = R && R.kind === 'ensemble' && R.peer && E.running && c && mem;
-  if (!show) { if (layer) layer.hidden = true; return; }
+  if (!show) { if (layer) layer.hidden = true; if (glLayer) glLayer.hidden = true; return; }
   if (!layer) { layer = document.createElement('canvas'); layer.className = 'duo-layer'; layer.setAttribute('aria-hidden', 'true'); }
   if (layer.parentElement !== c.parentElement) c.parentElement.append(layer);
   layer.hidden = false;
@@ -187,13 +204,15 @@ function drawGhost() {
   if (glLayer.width !== layer.width || glLayer.height !== layer.height) { glLayer.width = layer.width; glLayer.height = layer.height; }
   const me = readMe(), f = friendNow();
   glLayer.hidden = true;
-  if (!me || !f || !ghost.ingame || f.sc !== me.sc) return;
+  if (!me || !f || !ghost.ingame || f.sc !== me.sc || performance.now() - ghost.seen > 1500) return;
   const M = []; for (let i = 0; i < 16; i++) M.push(mem.f32(mem.play + OOT.vp + i * 4));
   const k = E.prefs.quality && E.prefs.quality.aspect === '16:9' ? 0.75 : 1; // GLideN64 élargit l'image en gardant le 4:3 au centre
   // Le vrai Link, quand ton ami a le même âge que toi (son modèle est alors dans ta mémoire)
   const sg = drawLink && f.j && segs();
   if (sg && sg.id === f.o && feet0(f, M, k)) {
-    try { drawLink(mem, sg.seg, f, new Float32Array(M), k, TUNICS[ghost.tunic]); glLayer.hidden = false; } catch (e) { console.warn('[eden64] modèle de Link', e); drawLink = null; }
+    // Mon Link est d'abord dessiné dans la profondeur seule : l'ami disparaît derrière moi au lieu de passer devant
+    const list = me.j && me.o === sg.id ? [{ f: me, depth: true }, { f, tint: TUNICS[ghost.tunic] }] : [{ f, tint: TUNICS[ghost.tunic] }];
+    try { drawLink(mem, sg.seg, list, new Float32Array(M), k); glLayer.hidden = false; } catch (e) { console.warn('[eden64] modèle de Link', e); drawLink = null; }
   }
   const P = (x, y, z) => { const p = project(x, y, z, M, k); return { x: p.x * w, y: p.y * h, w: p.w }; };
   const feet = P(f.x, f.y, f.z), head = P(f.x, f.y + 52, f.z), label = P(f.x, f.y + 78, f.z);
@@ -242,6 +261,7 @@ const hereTxt = () => {
   if (!R.peer) return '';
   if (!E.running) return 'Allume ton jeu pour apparaître chez ' + ghost.name + '.';
   if (!isOot()) return 'Chacun sa partie marche avec Ocarina of Time.';
+  if (performance.now() - ghost.seen > 1500) return ghost.name + ' ne répond plus…';
   if (!ghost.ingame) return ghost.name + ' n\'est pas encore en jeu.';
   const me = readMe(), f = friendNow();
   if (!me || !f) return 'Recherche de Link dans la mémoire du jeu…';
@@ -283,7 +303,7 @@ async function openRoom(kind, code, host) {
     R.stream = em().canvas.captureStream(E.rom && E.rom.pal ? 50 : 60); R.tap = audioTap();
     if (R.tap) for (const t of R.tap.tap.stream.getAudioTracks()) R.stream.addTrack(t);
   }
-  ghost.samples = []; ghost.ingame = false;
+  ghost.samples = []; ghost.ingame = false; ghost.off = null;
   roomUi();
   try { R.link = await connect(code, host); } catch (e) { toast('Connexion impossible : ' + e.message, 4000); closeRoom(); return; }
   const L = R.link;
@@ -291,13 +311,15 @@ async function openRoom(kind, code, host) {
   L.onJoin((id) => {
     if (!R) return;
     if (R.peer && R.peer !== id) return L.send({ t: 'full' });
-    R.peer = id;
+    R.peer = id; ghost.seen = performance.now();
     if (R.stream) L.addStream(R.stream, id);
     hello(); roomUi();
   });
-  L.onLeave((id) => { if (!R || id !== R.peer) return; release(); R.peer = null; R.ms = null; ghost.samples = []; toast(ghost.name + ' est parti'); roomUi(); });
+  L.onLeave((id) => { if (R && id === R.peer) gone(); });
   L.onMsg((m) => {
     if (!R || !m) return;
+    ghost.seen = performance.now();
+    if (!R.peer && R.lastPeer) { R.peer = R.lastPeer; roomUi(); } // l'ami donne de nouveau des nouvelles
     if (m.t === 'hello') {
       const first = !R.greeted;
       ghost.name = cleanName(m.name); ghost.title = String(m.title || '').slice(0, 80); ghost.tunic = m.tunic in TUNICS ? m.tunic : 'violet'; R.greeted = true;
@@ -308,7 +330,13 @@ async function openRoom(kind, code, host) {
     }
     if (m.t === 'pos') {
       ghost.ingame = !!m.in && validPos(m);
-      if (ghost.ingame) { ghost.samples.push({ sc: m.sc, x: m.x, y: m.y, z: m.z, r: m.r, o: m.o, j: m.j, d: m.d, t: performance.now() }); if (ghost.samples.length > 8) ghost.samples.shift(); }
+      if (ghost.ingame) {
+        // Horloge de l'ami ramenée à la mienne (plus petit délai vu) : le réseau irrégulier ne fait plus sauter le modèle
+        const now = performance.now(), ts = Number.isFinite(m.ts) ? m.ts : now;
+        if (ghost.off === null || now - ts < ghost.off || now - ts - ghost.off > 1000) ghost.off = now - ts;
+        ghost.samples.push({ sc: m.sc, x: m.x, y: m.y, z: m.z, r: m.r, o: m.o, j: m.j, d: m.d, t: ts + ghost.off });
+        if (ghost.samples.length > 16) ghost.samples.shift();
+      }
     }
     // Entrée venue d'un autre navigateur (écran partagé) : on ne garde que des valeurs valides
     if (m.t === 'in' && R.kind === 'ecran' && R.host && R.mode !== 'watch' && Number.isInteger(m.s) && m.s >= 0 && m.s < 24 && Number.isFinite(m.v)) {
@@ -319,20 +347,31 @@ async function openRoom(kind, code, host) {
     }
     if (m.t === 'react' && REACTIONS.includes(m.r)) { ghost.react = { r: m.r, t: performance.now() }; pop($('#game').parentElement, m.r); }
     if (m.t === 'ask' && R.kind === 'ecran' && R.mode === 'watch') showNotice(ghost.name + ' demande la manette.', [['Partager la manette 1', () => setMode('p1'), true], ['Plus tard', () => R && R.link.send({ t: 'no' })]]);
-    if (m.t === 'bye' && !R.host) { toast('La salle est fermée'); closeRoom(true); }
+    if (m.t === 'bye') { if (R.host) gone(); else { toast('La salle est fermée'); closeRoom(true); } }
   });
   R.timer = setInterval(async () => {
     if (!R) return;
     if (R.kind === 'ecran' && R.host && !E.running) { toast('Jeu éteint : salle fermée'); return closeRoom(); }
+    if (R.peer && performance.now() - ghost.seen > 6000) return gone(); // plus aucun message : parti sans prévenir
     if (R.peer) { hello(); try { R.ms = Math.round(await L.ping(R.peer)); } catch (e) {} } // le pseudo est renvoyé : rien ne se perd au démarrage
     roomUi();
   }, 2000);
-  R.pos = setInterval(async () => { // ~15 fois par seconde : où est mon Link
+  R.pos = setInterval(async () => { // 30 fois par seconde : où est mon Link, et dans quelle pose
     if (!R || R.kind !== 'ensemble' || !R.peer) return;
-    if (E.running && isOot() && !mem && em() && em().Module) mem = await findRam().catch(() => null);
+    if (E.running && isOot() && em() && em().Module) {
+      if (ramMod !== em().Module) { ramMod = em().Module; mem = null; lastPose = null; lastSegs = null; } // nouvelle partie
+      if (!mem) mem = await findRam().catch(() => null);
+    }
     const me = E.running ? readMe() : null;
-    L.send(me ? { t: 'pos', in: 1, ...me } : { t: 'pos', in: 0 });
-  }, 66);
+    if (R) L.send(me ? { t: 'pos', in: 1, ts: Math.round(performance.now()), ...me } : { t: 'pos', in: 0 });
+  }, 33);
+}
+// L'ami est parti (page fermée, connexion perdue) : on efface tout ce qui venait de lui
+function gone() {
+  if (!R || !R.peer) return;
+  release(); R.lastPeer = R.peer; R.peer = null; R.ms = null;
+  ghost.samples = []; ghost.off = null; ghost.ingame = false;
+  toast(ghost.name + ' est parti'); roomUi();
 }
 function closeRoom(quiet) {
   if (!R) return;
@@ -340,7 +379,7 @@ function closeRoom(quiet) {
   try { if (!quiet) R.link && R.link.send({ t: 'bye' }); R.link && R.link.leave(); } catch (e) {}
   if (R.stream) R.stream.getTracks().forEach((t) => t.stop());
   if (R.tap) R.tap.close();
-  R = null; ghost.samples = []; roomUi();
+  R = null; ghost.samples = []; ghost.ingame = false; roomUi();
 }
 
 /* ---------- Invité d'un écran partagé : il voit le jeu de l'hôte et renvoie ses touches ---------- */
@@ -428,8 +467,9 @@ reactionBar($('#duo-react'), (r) => { if (!R) return; pop($('#game').parentEleme
 $('#duo-go').onclick = () => { const v = $('#duo-in').value, m = v.match(/[?&]salle=([A-Za-z0-9]+)/), c = cleanCode(m ? m[1] : v); if (c) openRoom('ensemble', c, false); };
 $('#duo-in').onkeydown = (e) => { if (e.key === 'Enter') $('#duo-go').click(); };
 setInterval(() => { if (!R) roomUi(); }, 1000);
+addEventListener('pagehide', () => { if (R && R.link) R.link.send({ t: 'bye' }); }); // prévenir l'ami tout de suite
 roomUi();
 requestAnimationFrame(drawGhost);
 if (inviteCode) { E.showTab('duo'); openRoom('ensemble', inviteCode, false); }
 // Pour les tests : injecter une position d'ami
-window.duo = { openRoom, closeRoom, get room() { return R; }, get ghost() { return ghost; }, get mem() { return mem; }, readMe, feed: (m) => { ghost.ingame = true; ghost.samples.push({ ...m, t: performance.now() - 200 }, { ...m, t: performance.now() }); } };
+window.duo = { openRoom, closeRoom, get room() { return R; }, get ghost() { return ghost; }, get mem() { return mem; }, readMe, feed: (m) => { ghost.ingame = true; ghost.seen = performance.now(); ghost.samples.push({ ...m, t: performance.now() - 200 }, { ...m, t: performance.now() }); } };

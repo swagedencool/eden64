@@ -45,7 +45,7 @@ Toutes les touches se changent, au clavier (AZERTY ou QWERTY) comme à la manett
 
 Crée une salle dans l'onglet **À deux** et envoie le lien à un ami, comme dans [PokéLink](https://github.com/swagedencool/eden-pokelink).
 
-- **Chacun sa partie** (Ocarina of Time) : vous jouez chacun avec votre cartouche, et ton ami apparaît dans ton monde avec **le vrai modèle 3D de Link**, dans la tunique qu'il a choisie (violette ou jaune), à sa vraie place, avec toutes ses animations et ce qu'il tient en main (épée, grappin, boomerang…). Hors de l'écran, une flèche indique où il est. Tout est lu dans la mémoire du jeu et dessiné avec la caméra du jeu.
+- **Chacun sa partie** (Ocarina of Time) : vous jouez chacun avec votre cartouche, et ton ami apparaît dans ton monde avec **le vrai modèle 3D de Link**, dans la tunique qu'il a choisie (violette ou jaune), à sa vraie place, avec toutes ses animations et ce qu'il tient en main (épée, grappin, boomerang…). Il passe derrière ton Link quand il est derrière toi, et hors de l'écran une flèche indique où il est. Tout est lu dans la mémoire du jeu, 30 fois par seconde, et dessiné avec la caméra du jeu.
 - **Partager mon écran** (tous les jeux) : ton ami voit ton jeu en direct, avec le son, sans cartouche. Il regarde, joue avec ta manette ou prend la manette 2, et peut demander la manette.
 
 Dans les deux cas : réactions, pseudo, et les navigateurs se parlent directement, chiffré de bout en bout.
