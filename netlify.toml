@@ -1,3 +1,0 @@
-# eden64 : site statique, aucune étape de build. Les en-têtes sont dans _headers.
-[build]
-  publish = "web"

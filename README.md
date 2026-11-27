@@ -7,7 +7,7 @@
 
 <p align="center">
   Un émulateur Nintendo 64 qui tourne dans le navigateur, sur ordinateur comme sur téléphone. Rien à installer, aucun compte : tes cartouches et tes sauvegardes restent sur ton appareil.<br>
-  <a href="https://eden64.netlify.app"><b>Jouer</b></a> · <a href="docs/MANUEL.md">Manuel</a> · <a href="docs/TECHNIQUE.md">Notes techniques</a>
+  <a href="https://swagedencool.github.io/eden64/"><b>Jouer</b></a> · <a href="docs/MANUEL.md">Manuel</a> · <a href="docs/TECHNIQUE.md">Notes techniques</a>
 </p>
 
 <p align="center">
@@ -51,7 +51,7 @@ GameShark : codes pour 742 jeux, reconnus par l'empreinte de la cartouche. Parti
 
 ## Jouer
 
-1. Va sur **[eden64.netlify.app](https://eden64.netlify.app)**.
+1. Va sur **[swagedencool.github.io/eden64](https://swagedencool.github.io/eden64/)**.
 2. *Ajouter une cartouche* : choisis ton dump (`.z64`, `.n64`, `.v64` ou `.zip`). Il reste dans ta ludothèque.
 3. *Allumer*, ou A / Start à la manette.
 
@@ -75,7 +75,7 @@ python tests/duo_e2e.py                    # « À deux » dans deux onglets (Pl
 python tools/build_cheats.py <libretro-database>   # régénère les codes dans web/cheats/
 ```
 
-Chaque envoi sur `main` lance la [CI](.github/workflows/ci.yml) : syntaxe, test de fumée, et refus de tout dump ou sauvegarde dans le dépôt. Netlify publie le dossier `web/` ([netlify.toml](netlify.toml)).
+Chaque envoi sur `main` lance la [CI](.github/workflows/ci.yml) : syntaxe, test de fumée, et refus de tout dump ou sauvegarde dans le dépôt. Si elle passe, le dossier `web/` est publié tel quel sur GitHub Pages.
 
 ## Licence
 

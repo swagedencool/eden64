@@ -63,4 +63,4 @@ Au premier lancement, la carte graphique (via `WEBGL_debug_renderer_info`) range
 
 - iOS grise les extensions inconnues dans le sélecteur de fichiers : l'attribut `accept` est retiré sur iOS.
 - Safari invalide un fichier stocké dans IndexedDB quand l'enregistrement est réécrit : la cartouche est copiée en mémoire avant le lancement.
-- En-têtes ([web/_headers](../web/_headers)) : COOP/COEP, et une CSP limitée au site lui-même (plus `data:`, `blob:`, `wasm-unsafe-eval`, et `wss:` pour les relais de « À deux »).
+- Publié sur GitHub Pages, qui ne permet pas d'en-têtes : la CSP est dans une balise `<meta>` d'`index.html`. Elle est limitée au site lui-même (plus `data:`, `blob:`, `wasm-unsafe-eval`, et `wss:` pour les relais de « À deux »). Les serveurs locaux ajoutent COOP/COEP.
