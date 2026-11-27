@@ -28,7 +28,7 @@ async def main():
         g = await ctx.new_page(); g.on('pageerror', lambda e: errs.append(str(e)))
         await g.goto(f'{URL}?salle={code}&duo=local'); await g.click('#duo-join')
         await until(g, "document.querySelector('#duo-video').videoWidth > 0", 20)
-        assert 'Ami connecté' in await h.text_content('#duo-status')
+        assert 'est connecté' in await h.text_content('#duo-status')
         kc = await g.evaluate("eden.prefs.binds.kb.start")
         await g.keyboard.down('Enter'); await asyncio.sleep(0.3); await g.keyboard.up('Enter'); await asyncio.sleep(0.5)
         assert kc != 13 or await h.evaluate("got.some(([p, s, v]) => p === 0 && s === 3 && v === 1)"), 'Start de l\'ami non reçu'
@@ -37,7 +37,14 @@ async def main():
         n = await h.evaluate("got.length"); await g.keyboard.press('Enter'); await asyncio.sleep(0.5)
         assert await h.evaluate("got.length") == n, 'entrée acceptée en mode Regarde'
         await h.click('#duo-close'); await until(g, "document.querySelector('#duo-g-status').textContent.includes('fermé')")
+        # Chacun sa partie : deux onglets se retrouvent avec leur pseudo (la position de Link demande d'être en jeu)
+        await ctx.add_init_script("localStorage.setItem('be64-prefs', JSON.stringify({ v: 3, duoName: location.hash.slice(1) }))")
+        x = await ctx.new_page(); await x.goto(URL + '?duo=local#Eden'); await x.click('#tab-duo'); await x.click('#duo-create-ens')
+        code = await x.text_content('#duo-code')
+        y = await ctx.new_page(); await y.goto(f'{URL}?duo=local&salle={code}#Lucas')
+        await until(x, "document.querySelector('#duo-status').textContent.startsWith('Lucas est connecté')")
+        await until(y, "document.querySelector('#duo-status').textContent.startsWith('Eden est connecté')")
         assert not errs, errs
-        print('ok : vidéo et son reçus, touches, réactions, modes et fermeture')
+        print('ok : écran partagé (vidéo, son, touches, réactions, modes, fermeture) et salle « chacun sa partie »')
         await b.close()
 asyncio.run(main())

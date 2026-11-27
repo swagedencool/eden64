@@ -52,12 +52,23 @@ Au premier lancement, la carte graphique (via `WEBGL_debug_renderer_info`) range
 
 ## À deux
 
-`web/duo.js`, sur le modèle de PokéLink. Un code de salle de 6 caractères sert à se trouver via des relais publics Nostr ([Trystero](https://github.com/dmotz/trystero)) ; ensuite les deux navigateurs se parlent en WebRTC, chiffré de bout en bout.
+`web/duo.js`, sur le modèle de PokéLink. Un code de salle de 6 caractères sert à se trouver via des relais publics Nostr ([Trystero](https://github.com/dmotz/trystero)) ; ensuite les deux navigateurs se parlent en WebRTC, chiffré de bout en bout. Le pseudo est renvoyé toutes les 2 s, pour que rien ne se perde au démarrage.
+
+**Chacun sa partie** (Ocarina of Time)
+
+- La RAM de la N64 est retrouvée dans la mémoire du cœur grâce au code de démarrage de la cartouche (copié de ROM 0x1000 vers RAM 0x400). Si deux copies existent, on garde celle dont le compteur d'images avance.
+- Dans le `PlayState` (0x801C64E0 en PAL 1.0, 0x801C84A0 en NTSC 1.0, sinon cherché dans toute la RAM) : scène à +0xA4, acteur joueur à +0x1C44, matrice vue-projection à +0x11D60. Dans l'acteur : position à +0x24, orientation à +0xB6.
+- Position envoyée 15 fois par seconde, rejouée chez l'autre avec 100 ms de retard et interpolée.
+- L'ami est projeté avec la matrice du jeu (vérifié : même résultat que `projectedPos` du jeu) et dessiné dans un calque par-dessus l'image : silhouette, anneau au sol, sens du regard, pseudo. Hors champ, une flèche au bord de l'écran. Il est toujours dessiné devant le décor.
+- Les positions reçues sont vérifiées (scène et nombres plausibles).
+
+**Partager mon écran**
 
 - L'hôte envoie le canvas du jeu (`captureStream`) et le son (le même branchement que les clips vidéo).
 - L'ami renvoie seulement les changements de ses touches, avec ses propres réglages ; le stick analogique est arrondi à 32 crans.
 - L'hôte vérifie chaque entrée reçue (bouton 0 à 23, valeur bornée) avant de l'envoyer au cœur sur la manette 1 ou 2. Il relâche tout ce que l'ami tenait quand le mode change ou quand l'ami part.
-- `?duo=local` : la même chose entre deux onglets du même navigateur (BroadcastChannel pour se trouver), pour les tests.
+
+`?duo=local` : la même chose entre deux onglets du même navigateur (BroadcastChannel pour se trouver), pour les tests.
 
 ## Navigateurs
 

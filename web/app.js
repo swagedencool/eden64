@@ -2189,5 +2189,5 @@ renderSlots();
   }
 })();
 // Pour duo.js (module à part) : ce dont « Jouer à deux » a besoin
-window.eden = { $, em, ACTIONS, currentPad, bindOn, audioTap, toast, showNotice, savePrefs, get running() { return running; }, get rom() { return rom; }, get prefs() { return prefs; } };
+window.eden = { $, em, showTab, ACTIONS, currentPad, bindOn, audioTap, toast, showNotice, savePrefs, get running() { return running; }, get rom() { return rom; }, get prefs() { return prefs; } };
 }

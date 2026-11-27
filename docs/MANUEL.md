@@ -93,12 +93,18 @@ absent de WebGL 2, et ferait planter le moteur.
 
 Jouer à deux
 ------------
-Onglet "À deux", jeu allumé : "Créer une salle", puis "Copier le lien" et envoie-le à ton ami.
-Il ouvre le lien, clique "Rejoindre la partie" : il voit ton jeu en direct avec le son,
-et joue avec sa manette ou son clavier (ses propres réglages de touches). Pas besoin de cartouche.
-Sa manette : "Regarde", "Avec toi" (vous pilotez Link à deux) ou "Manette 2".
-Il peut demander la manette, et vous vous envoyez des réactions.
-Ta ROM reste chez toi : seule l'image et le son partent, en direct et chiffrés.
+Onglet "À deux" : mets ton pseudo, crée une salle, puis "Copier le lien" et envoie-le à ton ami.
+
+"Chacun sa partie" (Ocarina of Time) : ton ami ouvre le lien, charge SA cartouche et allume
+le jeu. Chacun joue sa partie ; quand vous êtes dans la même zone, ton ami apparaît chez toi
+à sa vraie place (silhouette verte avec son pseudo), et toi chez lui. S'il est hors de l'écran,
+une flèche au bord indique sa direction. L'onglet dit s'il est dans la même zone et à quelle distance.
+
+"Partager mon écran" : ton ami ouvre le lien et voit ton jeu en direct avec le son,
+sans cartouche. Il joue avec sa manette ou son clavier : "Regarde", "Avec toi" (manette 1)
+ou "Manette 2". Il peut demander la manette.
+
+Dans les deux cas, vous vous envoyez des réactions. Ta ROM reste chez toi.
 
 Ta ROM
 ------

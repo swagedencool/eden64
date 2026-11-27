@@ -266,6 +266,9 @@ body.immersive .immx{display:inline-flex}
 .duo-code{font:700 30px/1.1 "IBM Plex Mono",monospace;letter-spacing:.12em;margin:4px 0}
 .duo-status{font-size:14px;color:var(--muted);margin:0 0 10px}.duo-status.on{color:var(--ok)}
 .duo-r{min-width:44px;font-size:18px}
+.duo-lab{display:block;font-size:13px;font-weight:600;margin:6px 0 4px}
+.duo-choice{display:grid;gap:4px;margin-top:12px}.duo-choice .hint{margin:0 0 8px}
+.duo-layer{position:absolute;z-index:5;pointer-events:none}
 .duo-pop{position:absolute;bottom:14%;z-index:6;font-size:44px;pointer-events:none;animation:duo-up 2.2s ease-out forwards}
 @keyframes duo-up{0%{transform:translateY(0) scale(.6);opacity:0}15%{transform:translateY(-10px) scale(1.1);opacity:1}100%{transform:translateY(-220px) scale(1);opacity:0}}
 .duo-guest{position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;background:#0b0c0f;color:#f2f2f2}
@@ -552,20 +555,28 @@ body.duo-guest-on{overflow:hidden}
     <div class="tabpane scroll" role="tabpanel" id="pane-duo" aria-labelledby="tab-duo" hidden>
       <div class="sect" id="duo-idle">
         <h3>Jouer à deux</h3>
-        <p class="hint" id="duo-idle-hint"></p>
-        <div class="actions"><button class="btn primary" id="duo-create">Créer une salle</button></div>
+        <label class="duo-lab" for="duo-name">Ton pseudo</label>
+        <input id="duo-name" class="duo-input" placeholder="Joueur" maxlength="16" autocomplete="nickname" spellcheck="false">
+        <div class="duo-choice">
+          <button class="btn primary" id="duo-create-ens">Chacun sa partie</button>
+          <p class="hint">Vous jouez chacun avec votre cartouche d'Ocarina of Time, et vous vous voyez dans le jeu, à votre vraie place.</p>
+          <button class="btn" id="duo-create">Partager mon écran</button>
+          <p class="hint">Ton ami voit ton jeu en direct et joue avec ta manette, sans cartouche. Allume un jeu d'abord.</p>
+        </div>
         <h3 style="margin-top:18px">Un ami t'a donné un code ?</h3>
         <div class="duo-row"><input id="duo-in" class="duo-input" placeholder="Code ou lien" maxlength="200" autocomplete="off" spellcheck="false" aria-label="Code de salle"><button class="btn" id="duo-go">Rejoindre</button></div>
       </div>
       <div class="sect" id="duo-host" hidden>
-        <h3>Salle</h3>
+        <h3 id="duo-kind">Salle</h3>
         <p class="duo-code" id="duo-code"></p>
         <p class="duo-status" id="duo-status" aria-live="polite"></p>
-        <div class="actions"><button class="btn primary" id="duo-copy">Copier le lien</button><button class="btn" id="duo-close">Fermer la salle</button></div>
-        <h3 style="margin-top:18px">Manette de ton ami</h3>
-        <div class="seg" id="duo-mode" role="group" aria-label="Manette de ton ami"><button data-m="watch">Regarde</button><button data-m="p1">Avec toi</button><button data-m="p2">Manette 2</button></div>
-        <p class="hint" id="duo-mode-txt"></p>
-        <p class="hint">Dans Ocarina of Time, « Avec toi » : vous pilotez Link à deux, par exemple l'un se déplace et l'autre gère les objets.</p>
+        <p class="hint" id="duo-where" aria-live="polite"></p>
+        <div class="actions"><button class="btn primary" id="duo-copy">Copier le lien</button><button class="btn" id="duo-close">Quitter la salle</button></div>
+        <div id="duo-ecran" hidden>
+          <h3 style="margin-top:18px">Manette de ton ami</h3>
+          <div class="seg" id="duo-mode" role="group" aria-label="Manette de ton ami"><button data-m="watch">Regarde</button><button data-m="p1">Avec toi</button><button data-m="p2">Manette 2</button></div>
+          <p class="hint" id="duo-mode-txt"></p>
+        </div>
         <h3 style="margin-top:18px">Réactions</h3>
         <div class="duo-row" id="duo-react"></div>
       </div>
@@ -607,8 +618,8 @@ body.duo-guest-on{overflow:hidden}
 <footer>eden64 · EmulatorJS (GPL-3.0) · core libretro mupen64plus-next et GLideN64 (GPL-2.0) compilés en WebAssembly · codes : libretro-database (CC BY-SA 4.0) · polices Chakra Petch et IBM Plex (SIL OFL) · aucune ROM incluse</footer>
 <section id="duo-guest" class="duo-guest" hidden aria-label="Partie de ton ami">
   <header class="duo-g-bar"><b>eden<span class="r64">64</span></b><span>Salle <b id="duo-g-code"></b></span><span id="duo-g-title"></span><span class="duo-g-end"><span id="duo-g-status">Prêt</span> <span id="duo-g-ping"></span></span></header>
-  <div class="duo-g-screen"><video id="duo-video" playsinline autoplay></video>
-    <div class="duo-join-card" id="duo-join-card"><p>Ton ami t'invite sur sa partie. Tu verras son jeu en direct et tu joueras avec ta manette ou ton clavier, sans cartouche.</p><button class="btn primary" id="duo-join">Rejoindre la partie</button></div>
+  <div class="duo-g-screen"><video id="duo-video" playsinline autoplay muted></video>
+    <div class="duo-join-card" id="duo-join-card"><p>Ton ami partage son écran. Tu vois son jeu en direct et tu joues avec ta manette ou ton clavier, sans cartouche.</p><button class="btn primary" id="duo-join">Activer le son et jouer</button></div>
   </div>
   <footer class="duo-g-bar"><span id="duo-g-mode"></span><button class="btn sm" id="duo-ask" hidden>Demander la manette</button><span class="duo-row" id="duo-g-react"></span><button class="btn sm duo-g-end" id="duo-leave">Quitter</button></footer>
 </section>
