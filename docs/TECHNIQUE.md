@@ -61,6 +61,8 @@ Au premier lancement, la carte graphique (via `WEBGL_debug_renderer_info`) range
 - Position envoyée 15 fois par seconde, rejouée chez l'autre avec 100 ms de retard et interpolée.
 - L'ami est projeté avec la matrice du jeu (vérifié : même résultat que `projectedPos` du jeu) et dessiné dans un calque par-dessus l'image : silhouette, anneau au sol, sens du regard, pseudo. Hors champ, une flèche au bord de l'écran. Il est toujours dessiné devant le décor.
 - Les positions reçues sont vérifiées (scène et nombres plausibles).
+- **Le vrai Link** (`web/duo-link.js`) : l'ami envoie aussi sa pose (23 os du `SkelAnime` à Player +0x1A4) et les listes d'affichage de ses mains, de son fourreau et de sa taille (tableaux à Player +0x150 à +0x15C, c'est ainsi que le jeu montre le grappin ou le boomerang en main). Chez toi, le modèle est lu dans l'objet de Link déjà chargé dans ta mémoire (ObjectContext à PlayState +0x117A4) : les listes d'affichage F3DEX2 sont traduites en triangles WebGL 2, textures N64 décodées (RGBA16, CI4/CI8, IA, I), combineur de couleurs N64 traduit en shader. Les os sont parcourus comme `SkelAnime_DrawFlex` (matrices du segment 0x0D). La tunique est la couleur d'environnement, comme pour les tuniques Goron et Zora.
+- Si vous n'avez pas le même âge (enfant / adulte), le modèle de l'autre n'est pas dans ta mémoire : une silhouette le remplace.
 
 **Partager mon écran**
 

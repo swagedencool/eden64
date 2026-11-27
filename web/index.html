@@ -268,7 +268,7 @@ body.immersive .immx{display:inline-flex}
 .duo-r{min-width:44px;font-size:18px}
 .duo-lab{display:block;font-size:13px;font-weight:600;margin:6px 0 4px}
 .duo-choice{display:grid;gap:4px;margin-top:12px}.duo-choice .hint{margin:0 0 8px}
-.duo-layer{position:absolute;z-index:5;pointer-events:none}
+.duo-layer{position:absolute;z-index:3;pointer-events:none}
 .duo-pop{position:absolute;bottom:14%;z-index:6;font-size:44px;pointer-events:none;animation:duo-up 2.2s ease-out forwards}
 @keyframes duo-up{0%{transform:translateY(0) scale(.6);opacity:0}15%{transform:translateY(-10px) scale(1.1);opacity:1}100%{transform:translateY(-220px) scale(1);opacity:0}}
 .duo-guest{position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;background:#0b0c0f;color:#f2f2f2}
@@ -557,6 +557,8 @@ body.duo-guest-on{overflow:hidden}
         <h3>Jouer à deux</h3>
         <label class="duo-lab" for="duo-name">Ton pseudo</label>
         <input id="duo-name" class="duo-input" placeholder="Joueur" maxlength="16" autocomplete="nickname" spellcheck="false">
+        <label class="duo-lab">Ta tunique chez ton ami</label>
+        <div class="seg" id="duo-tunic" role="group" aria-label="Couleur de ta tunique chez ton ami"><button data-c="violet">Violet</button><button data-c="jaune">Jaune</button></div>
         <div class="duo-choice">
           <button class="btn primary" id="duo-create-ens">Chacun sa partie</button>
           <p class="hint">Vous jouez chacun avec votre cartouche d'Ocarina of Time, et vous vous voyez dans le jeu, à votre vraie place.</p>

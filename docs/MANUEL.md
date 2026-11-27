@@ -97,7 +97,8 @@ Onglet "À deux" : mets ton pseudo, crée une salle, puis "Copier le lien" et en
 
 "Chacun sa partie" (Ocarina of Time) : ton ami ouvre le lien, charge SA cartouche et allume
 le jeu. Chacun joue sa partie ; quand vous êtes dans la même zone, ton ami apparaît chez toi
-à sa vraie place (silhouette verte avec son pseudo), et toi chez lui. S'il est hors de l'écran,
+à sa vraie place, avec le vrai Link du jeu dans la tunique qu'il a choisie (violette ou jaune),
+ses animations et ce qu'il tient en main. Choisis ta couleur dans l'onglet avant de créer la salle. S'il est hors de l'écran,
 une flèche au bord indique sa direction. L'onglet dit s'il est dans la même zone et à quelle distance.
 
 "Partager mon écran" : ton ami ouvre le lien et voit ton jeu en direct avec le son,

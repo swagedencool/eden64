@@ -4,6 +4,7 @@
 //    on l'envoie à l'ami, et l'ami s'affiche à sa vraie place dans le monde 3D de l'autre (par-dessus l'image).
 //  - « Partager mon écran » : l'hôte envoie l'image et le son, l'ami (sans cartouche) renvoie ses touches.
 // Les relais publics Nostr (Trystero, MIT) servent seulement à se trouver. ?duo=local : deux onglets du même navigateur.
+import { readPose, validPose, linkRenderer } from './duo-link.js';
 const E = window.eden; // exposé par app.js
 const { $, em, ACTIONS, currentPad, bindOn, audioTap, toast, showNotice, savePrefs } = E;
 
@@ -19,6 +20,8 @@ const local = params.get('duo') === 'local';
 const inviteCode = cleanCode(params.get('salle'));
 const full = (s) => (s >= 16 ? 0x7fff : 1);
 const myName = () => cleanName(E.prefs.duoName || 'Joueur');
+const TUNICS = { violet: [0.55, 0.25, 0.85, 1], jaune: [0.95, 0.78, 0.12, 1] };
+const myTunic = () => (E.prefs.duoTunic in TUNICS ? E.prefs.duoTunic : 'violet');
 
 /* ---------- Liaisons : même interface pour Internet (Trystero) et deux onglets (BroadcastChannel) ---------- */
 async function trysteroLink(code) {
@@ -129,14 +132,22 @@ function readMe() {
   if (!mem) return null;
   if (!isPlay(mem, mem.play)) { mem = null; return null; }
   const p = mem.u32(mem.play + OOT.player);
-  return { sc: mem.s16(mem.play + OOT.scene), x: mem.f32(p + 0x24), y: mem.f32(p + 0x28), z: mem.f32(p + 0x2C), r: mem.s16(p + 0xB6) };
+  return { sc: mem.s16(mem.play + OOT.scene), x: mem.f32(p + 0x24), y: mem.f32(p + 0x28), z: mem.f32(p + 0x2C), r: mem.s16(p + 0xB6), ...readPose(mem, p) };
 }
 // Position envoyée par l'autre navigateur : on ne garde que des nombres plausibles
-const validPos = (m) => Number.isInteger(m.sc) && m.sc >= 0 && m.sc < 0x80 && [m.x, m.y, m.z, m.r].every((v) => Number.isFinite(v) && Math.abs(v) < 1e5);
+const validPos = (m) => Number.isInteger(m.sc) && m.sc >= 0 && m.sc < 0x80 && [m.x, m.y, m.z, m.r].every((v) => Number.isFinite(v) && Math.abs(v) < 1e5) && (m.j === undefined || validPose(m));
 
 /* ---------- L'ami dans ton monde : projeté avec la caméra du jeu, dessiné par-dessus l'image ---------- */
-const ghost = { samples: [], name: 'Ton ami', title: '', ingame: false, react: null };
-let layer = null;
+const ghost = { samples: [], name: 'Ton ami', title: '', tunic: 'violet', ingame: false, react: null };
+let layer = null, glLayer = null, drawLink = null;
+// Segments N64 utilisés par le modèle de Link : 6 son objet, 4 gameplay_keep, 8 et 9 yeux et bouche (en tête de l'objet)
+function segs() {
+  const slot = (want) => { for (let i = 0; i < 19; i++) { const s = mem.play + 0x117A4 + 0xC + i * 0x44; if (want(mem.s16(s))) return { id: mem.s16(s), base: mem.u32(s + 4) }; } return null; };
+  const link = slot((id) => id === 0x14 || id === 0x15), keep = slot((id) => id === 1);
+  if (!link || !keep) return null;
+  const base = { 4: keep.base, 6: link.base, 8: link.base, 9: link.base + 0x4000 };
+  return { id: link.id, seg: (a) => (a >= 0x80000000 ? a : (base[a >>> 24] || 0) + (a & 0xffffff)) };
+}
 function project(x, y, z, M, k) {
   const X = M[0] * x + M[4] * y + M[8] * z + M[12], Y = M[1] * x + M[5] * y + M[9] * z + M[13], W = M[3] * x + M[7] * y + M[11] * z + M[15];
   return { x: 0.5 + 0.5 * k * X / Math.abs(W || 1e-6), y: 0.5 - 0.5 * Y / Math.abs(W || 1e-6), w: W };
@@ -150,7 +161,9 @@ function friendNow() {
   if (a.sc !== b.sc || b.t === a.t) return b;
   const u = Math.max(0, Math.min(1, (t - a.t) / (b.t - a.t)));
   let dr = b.r - a.r; if (dr > 32768) dr -= 65536; if (dr < -32768) dr += 65536;
-  return { sc: b.sc, x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u, z: a.z + (b.z - a.z) * u, r: a.r + dr * u };
+  const turn = (p, q) => { let d = q - p; if (d > 32768) d -= 65536; if (d < -32768) d += 65536; return Math.round(p + d * u); };
+  const j = a.j && b.j && a.o === b.o ? b.j.map((q, i) => (i < 3 ? Math.round(a.j[i] + (q - a.j[i]) * u) : turn(a.j[i], q))) : b.j;
+  return { ...b, x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u, z: a.z + (b.z - a.z) * u, r: a.r + dr * u, j };
 }
 function drawGhost() {
   requestAnimationFrame(drawGhost);
@@ -168,15 +181,26 @@ function drawGhost() {
   if (layer.height !== Math.round(h * dpr)) layer.height = Math.round(h * dpr);
   const g = layer.getContext('2d');
   g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
+  if (!glLayer) { glLayer = document.createElement('canvas'); glLayer.className = 'duo-layer'; glLayer.setAttribute('aria-hidden', 'true'); drawLink = linkRenderer(glLayer); }
+  if (glLayer.nextSibling !== layer) layer.before(glLayer);
+  glLayer.style.cssText = layer.style.cssText;
+  if (glLayer.width !== layer.width || glLayer.height !== layer.height) { glLayer.width = layer.width; glLayer.height = layer.height; }
   const me = readMe(), f = friendNow();
+  glLayer.hidden = true;
   if (!me || !f || !ghost.ingame || f.sc !== me.sc) return;
   const M = []; for (let i = 0; i < 16; i++) M.push(mem.f32(mem.play + OOT.vp + i * 4));
   const k = E.prefs.quality && E.prefs.quality.aspect === '16:9' ? 0.75 : 1; // GLideN64 élargit l'image en gardant le 4:3 au centre
+  // Le vrai Link, quand ton ami a le même âge que toi (son modèle est alors dans ta mémoire)
+  const sg = drawLink && f.j && segs();
+  if (sg && sg.id === f.o && feet0(f, M, k)) {
+    try { drawLink(mem, sg.seg, f, new Float32Array(M), k, TUNICS[ghost.tunic]); glLayer.hidden = false; } catch (e) { console.warn('[eden64] modèle de Link', e); drawLink = null; }
+  }
   const P = (x, y, z) => { const p = project(x, y, z, M, k); return { x: p.x * w, y: p.y * h, w: p.w }; };
   const feet = P(f.x, f.y, f.z), head = P(f.x, f.y + 52, f.z), label = P(f.x, f.y + 78, f.z);
   const col = '#2fbf71', inView = feet.w > 1 && head.x > -40 && head.x < w + 40 && head.y > -40 && feet.y < h + 40;
   if (!inView) return edgeArrow(g, w, h, feet, col);
   const s = Math.max(2.5, Math.min(36, 900 / feet.w));
+  if (!glLayer.hidden) return tag(g, label.x, label.y, ghost.name, ghost.react && performance.now() - ghost.react.t < 2500 ? ghost.react.r : '');
   // Anneau au sol et sens du regard : ils donnent la profondeur
   g.beginPath();
   for (let i = 0; i <= 20; i++) { const a = (i / 20) * Math.PI * 2, p = P(f.x + Math.sin(a) * 20, f.y + 1, f.z + Math.cos(a) * 20); i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y); }
@@ -191,6 +215,7 @@ function drawGhost() {
   g.globalAlpha = 1; g.lineWidth = Math.max(1, s / 8); g.strokeStyle = '#0b3d22'; g.stroke();
   tag(g, label.x, label.y, ghost.name, ghost.react && performance.now() - ghost.react.t < 2500 ? ghost.react.r : '');
 }
+const feet0 = (f, M, k) => project(f.x, f.y, f.z, M, k).w > 1;
 function tag(g, x, y, name, react) {
   g.font = '600 13px "IBM Plex Sans", system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'bottom';
   const tw = g.measureText(name).width + 14;
@@ -248,7 +273,7 @@ function setMode(m) {
   release(); R.mode = m; E.prefs.duoMode = m; savePrefs();
   R.link.send({ t: 'mode', mode: m }); roomUi();
 }
-const hello = () => R.link.send({ t: 'hello', kind: R.kind, name: myName(), title: E.rom ? E.rom.title : '', mode: R.mode });
+const hello = () => R.link.send({ t: 'hello', kind: R.kind, name: myName(), tunic: myTunic(), title: E.rom ? E.rom.title : '', mode: R.mode });
 
 async function openRoom(kind, code, host) {
   if (R) return;
@@ -275,7 +300,7 @@ async function openRoom(kind, code, host) {
     if (!R || !m) return;
     if (m.t === 'hello') {
       const first = !R.greeted;
-      ghost.name = cleanName(m.name); ghost.title = String(m.title || '').slice(0, 80); R.greeted = true;
+      ghost.name = cleanName(m.name); ghost.title = String(m.title || '').slice(0, 80); ghost.tunic = m.tunic in TUNICS ? m.tunic : 'violet'; R.greeted = true;
       if (first) toast(ghost.name + ' est dans la salle');
       if (!R.host && m.kind === 'ecran') return watch(m); // salle « écran partagé » : vue invité
       if (!R.host) R.kind = 'ensemble';
@@ -283,7 +308,7 @@ async function openRoom(kind, code, host) {
     }
     if (m.t === 'pos') {
       ghost.ingame = !!m.in && validPos(m);
-      if (ghost.ingame) { ghost.samples.push({ sc: m.sc, x: m.x, y: m.y, z: m.z, r: m.r, t: performance.now() }); if (ghost.samples.length > 8) ghost.samples.shift(); }
+      if (ghost.ingame) { ghost.samples.push({ sc: m.sc, x: m.x, y: m.y, z: m.z, r: m.r, o: m.o, j: m.j, d: m.d, t: performance.now() }); if (ghost.samples.length > 8) ghost.samples.shift(); }
     }
     // Entrée venue d'un autre navigateur (écran partagé) : on ne garde que des valeurs valides
     if (m.t === 'in' && R.kind === 'ecran' && R.host && R.mode !== 'watch' && Number.isInteger(m.s) && m.s >= 0 && m.s < 24 && Number.isFinite(m.v)) {
@@ -389,6 +414,7 @@ function reactionBar(box, send) {
 
 /* ---------- Branchement ---------- */
 $('#duo-name').value = E.prefs.duoName || '';
+for (const b of $('#duo-tunic').children) { b.setAttribute('aria-pressed', String(b.dataset.c === myTunic())); b.onclick = () => { E.prefs.duoTunic = b.dataset.c; savePrefs(); for (const x of $('#duo-tunic').children) x.setAttribute('aria-pressed', String(x === b)); }; }
 $('#duo-name').onchange = () => { E.prefs.duoName = cleanName($('#duo-name').value); savePrefs(); };
 $('#duo-create-ens').onclick = () => openRoom('ensemble', makeCode(), true);
 $('#duo-create').onclick = () => openRoom('ecran', makeCode(), true);
