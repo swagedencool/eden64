@@ -91,6 +91,15 @@ filtres d'écran cathodiques. "Appliquer" redémarre la console et reprend ta pa
 exactement au même endroit. Le MSAA n'est pas proposé : il exige OpenGL ES 3.1,
 absent de WebGL 2, et ferait planter le moteur.
 
+Jouer à deux
+------------
+Onglet "À deux", jeu allumé : "Créer une salle", puis "Copier le lien" et envoie-le à ton ami.
+Il ouvre le lien, clique "Rejoindre la partie" : il voit ton jeu en direct avec le son,
+et joue avec sa manette ou son clavier (ses propres réglages de touches). Pas besoin de cartouche.
+Sa manette : "Regarde", "Avec toi" (vous pilotez Link à deux) ou "Manette 2".
+Il peut demander la manette, et vous vous envoyez des réactions.
+Ta ROM reste chez toi : seule l'image et le son partent, en direct et chiffrés.
+
 Ta ROM
 ------
 Elle n'est ni copiée sur un serveur ni envoyée : la page la lit en mémoire avec l'API File.
@@ -99,8 +108,9 @@ pour la réinsérer en un clic (bouton "Oublier" pour l'effacer).
 
 Contenu
 -------
-index.html, app.js, fonts.css   l'interface
-emulator/data/                  EmulatorJS 4.2.3 + core mupen64plus-next (GLideN64) en WebAssembly
-serveur.ps1 / serveur.mjs       serveurs HTTP locaux (en-têtes COOP/COEP inclus)
+web/                                 le site : index.html, app.js, duo.js (À deux), fonts.css
+web/emulator/data/                   EmulatorJS 4.2.3 + cœurs mupen64plus-next et ParaLLEl-N64 en WebAssembly
+tools/serveur.ps1, tools/serveur.mjs serveurs HTTP locaux (en-têtes COOP/COEP inclus)
+roms/                                tes jeux, pour la ludothèque locale
 
-Licences : EmulatorJS GPL-3.0, mupen64plus-next GPL-2.0, polices SIL OFL.
+Licences : EmulatorJS GPL-3.0, cœurs GPL-2.0, Trystero MIT, polices SIL OFL (détails : THIRD_PARTY.md).

@@ -50,8 +50,17 @@ Le cœur embarque la base `mupen64plus.ini`, qui dit quels jeux utilisent le Tra
 
 Au premier lancement, la carte graphique (via `WEBGL_debug_renderer_info`) range la machine dans un profil : logiciel, faible, moyen ou puissant. Pendant la partie, eden64 compare les images affichées, le rythme de l'écran et la charge du moteur. Il peut ainsi dire si le ralentissement vient de l'économiseur d'énergie du navigateur, d'un rendu sans carte graphique ou du processeur. Le canvas à faible latence (`desynchronized`) est activé seulement sur ordinateur : il apporte environ +4 % d'images par seconde en moyenne.
 
+## À deux
+
+`web/duo.js`, sur le modèle de PokéLink. Un code de salle de 6 caractères sert à se trouver via des relais publics Nostr ([Trystero](https://github.com/dmotz/trystero)) ; ensuite les deux navigateurs se parlent en WebRTC, chiffré de bout en bout.
+
+- L'hôte envoie le canvas du jeu (`captureStream`) et le son (le même branchement que les clips vidéo).
+- L'ami renvoie seulement les changements de ses touches, avec ses propres réglages ; le stick analogique est arrondi à 32 crans.
+- L'hôte vérifie chaque entrée reçue (bouton 0 à 23, valeur bornée) avant de l'envoyer au cœur sur la manette 1 ou 2. Il relâche tout ce que l'ami tenait quand le mode change ou quand l'ami part.
+- `?duo=local` : la même chose entre deux onglets du même navigateur (BroadcastChannel pour se trouver), pour les tests.
+
 ## Navigateurs
 
 - iOS grise les extensions inconnues dans le sélecteur de fichiers : l'attribut `accept` est retiré sur iOS.
 - Safari invalide un fichier stocké dans IndexedDB quand l'enregistrement est réécrit : la cartouche est copiée en mémoire avant le lancement.
-- En-têtes ([web/_headers](../web/_headers)) : COOP/COEP, et une CSP limitée au site lui-même (plus `data:`, `blob:` et `wasm-unsafe-eval`).
+- En-têtes ([web/_headers](../web/_headers)) : COOP/COEP, et une CSP limitée au site lui-même (plus `data:`, `blob:`, `wasm-unsafe-eval`, et `wss:` pour les relais de « À deux »).

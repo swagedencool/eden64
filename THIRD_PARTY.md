@@ -8,3 +8,4 @@
 | libretro-database cheat files | CC BY-SA 4.0 | [libretro/libretro-database](https://github.com/libretro/libretro-database) | `web/cheats/` (convertis en JSON par `tools/build_cheats.py`, même licence) |
 | No-Intro N64 DAT | seuls les préfixes SHA-1 sont utilisés | [No-Intro](https://no-intro.org) | `web/cheats/index.json` |
 | Chakra Petch, IBM Plex Sans / Mono | SIL OFL 1.1 | Google Fonts / IBM | intégrées dans `web/fonts.css` |
+| Trystero 0.27 | MIT | [dmotz/trystero](https://github.com/dmotz/trystero) | `web/vendor/trystero.js` (« À deux ») |

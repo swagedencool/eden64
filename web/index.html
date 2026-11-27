@@ -259,6 +259,25 @@ body.immersive .immx{display:inline-flex}
   .bar .end{margin-left:0}
 }
 @media(max-width:520px){.brand p{display:none}.toast{white-space:normal;max-width:86%}.form{grid-template-columns:minmax(0,1fr)}.bar .btn:not(.icon) span{display:none}.status .turbo{margin-left:0}.ogrid{grid-template-columns:1fr 1fr}.song small{display:none}}
+/* À deux */
+.duo-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.duo-input{flex:1 1 140px;min-width:0;min-height:40px;padding:0 11px;border-radius:11px;border:1px solid var(--line);background:var(--panel-2);font:inherit;text-transform:uppercase}
+.duo-code{font:700 30px/1.1 "IBM Plex Mono",monospace;letter-spacing:.12em;margin:4px 0}
+.duo-status{font-size:14px;color:var(--muted);margin:0 0 10px}.duo-status.on{color:var(--ok)}
+.duo-r{min-width:44px;font-size:18px}
+.duo-pop{position:absolute;bottom:14%;z-index:6;font-size:44px;pointer-events:none;animation:duo-up 2.2s ease-out forwards}
+@keyframes duo-up{0%{transform:translateY(0) scale(.6);opacity:0}15%{transform:translateY(-10px) scale(1.1);opacity:1}100%{transform:translateY(-220px) scale(1);opacity:0}}
+.duo-guest{position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;background:#0b0c0f;color:#f2f2f2}
+.duo-guest[hidden]{display:none}
+.duo-g-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;padding:10px 16px;font-size:14px}
+.duo-g-bar .r64{color:var(--red)}.duo-g-end{margin-left:auto}
+.duo-g-bar .btn{background:#ffffff14;border-color:#ffffff33;color:#fff}
+.duo-g-screen{position:relative;flex:1;min-height:0;display:grid;place-items:center}
+.duo-g-screen video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000}
+.duo-join-card{position:absolute;max-width:420px;padding:20px;border-radius:14px;background:#16181de6;text-align:center}
+.duo-join-card p{margin:0 0 14px}
+body.duo-guest-on{overflow:hidden}
+@media (prefers-reduced-motion:reduce){.duo-pop{animation-duration:.01s}}
 </style>
 </head>
 <body>
@@ -380,6 +399,7 @@ body.immersive .immx{display:inline-flex}
       <button role="tab" id="tab-cmd" aria-controls="pane-cmd" aria-selected="false">Touches</button>
       <button role="tab" id="tab-codes" aria-controls="pane-codes" aria-selected="false">Codes</button>
       <button role="tab" id="tab-infos" aria-controls="pane-infos" aria-selected="false">Infos</button>
+      <button role="tab" id="tab-duo" aria-controls="pane-duo" aria-selected="false">À deux</button>
     </div>
 
     <div class="tabpane scroll" role="tabpanel" id="pane-partie" aria-labelledby="tab-partie">
@@ -528,6 +548,28 @@ body.immersive .immx{display:inline-flex}
       </div>
     </div>
 
+    <div class="tabpane scroll" role="tabpanel" id="pane-duo" aria-labelledby="tab-duo" hidden>
+      <div class="sect" id="duo-idle">
+        <h3>Jouer à deux</h3>
+        <p class="hint" id="duo-idle-hint"></p>
+        <div class="actions"><button class="btn primary" id="duo-create">Créer une salle</button></div>
+        <h3 style="margin-top:18px">Un ami t'a donné un code ?</h3>
+        <div class="duo-row"><input id="duo-in" class="duo-input" placeholder="Code ou lien" maxlength="200" autocomplete="off" spellcheck="false" aria-label="Code de salle"><button class="btn" id="duo-go">Rejoindre</button></div>
+      </div>
+      <div class="sect" id="duo-host" hidden>
+        <h3>Salle</h3>
+        <p class="duo-code" id="duo-code"></p>
+        <p class="duo-status" id="duo-status" aria-live="polite"></p>
+        <div class="actions"><button class="btn primary" id="duo-copy">Copier le lien</button><button class="btn" id="duo-close">Fermer la salle</button></div>
+        <h3 style="margin-top:18px">Manette de ton ami</h3>
+        <div class="seg" id="duo-mode" role="group" aria-label="Manette de ton ami"><button data-m="watch">Regarde</button><button data-m="p1">Avec toi</button><button data-m="p2">Manette 2</button></div>
+        <p class="hint" id="duo-mode-txt"></p>
+        <p class="hint">Dans Ocarina of Time, « Avec toi » : vous pilotez Link à deux, par exemple l'un se déplace et l'autre gère les objets.</p>
+        <h3 style="margin-top:18px">Réactions</h3>
+        <div class="duo-row" id="duo-react"></div>
+      </div>
+    </div>
+
     <div class="tabpane scroll" role="tabpanel" id="pane-infos" aria-labelledby="tab-infos" hidden>
       <div class="sect">
         <h3>Cartouche</h3>
@@ -562,6 +604,14 @@ body.immersive .immx{display:inline-flex}
 </div>
 
 <footer>eden64 · EmulatorJS (GPL-3.0) · core libretro mupen64plus-next et GLideN64 (GPL-2.0) compilés en WebAssembly · codes : libretro-database (CC BY-SA 4.0) · polices Chakra Petch et IBM Plex (SIL OFL) · aucune ROM incluse</footer>
+<section id="duo-guest" class="duo-guest" hidden aria-label="Partie de ton ami">
+  <header class="duo-g-bar"><b>eden<span class="r64">64</span></b><span>Salle <b id="duo-g-code"></b></span><span id="duo-g-title"></span><span class="duo-g-end"><span id="duo-g-status">Prêt</span> <span id="duo-g-ping"></span></span></header>
+  <div class="duo-g-screen"><video id="duo-video" playsinline autoplay></video>
+    <div class="duo-join-card" id="duo-join-card"><p>Ton ami t'invite sur sa partie. Tu verras son jeu en direct et tu joueras avec ta manette ou ton clavier, sans cartouche.</p><button class="btn primary" id="duo-join">Rejoindre la partie</button></div>
+  </div>
+  <footer class="duo-g-bar"><span id="duo-g-mode"></span><button class="btn sm" id="duo-ask" hidden>Demander la manette</button><span class="duo-row" id="duo-g-react"></span><button class="btn sm duo-g-end" id="duo-leave">Quitter</button></footer>
+</section>
 <script src="app.js"></script>
+<script type="module" src="duo.js"></script>
 </body>
 </html>

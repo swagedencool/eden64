@@ -25,7 +25,7 @@ try {
   const paths = [...html.matchAll(/(?:src|href)="(?!#|https?:)([^"]+)"/g)].map((m) => m[1]);
   const manifest = await (await get('manifest.webmanifest')).json();
   paths.push(...manifest.icons.map((i) => i.src));
-  paths.push('emulator/data/loader.js', 'emulator/data/emulator.min.js', 'emulator/data/emulator.min.css', 'cheats/index.json');
+  paths.push('vendor/trystero.js', 'emulator/data/loader.js', 'emulator/data/emulator.min.js', 'emulator/data/emulator.min.css', 'cheats/index.json');
   for (const v of ['gl1', 'gl2', 'pn64', 'pn64-gl1']) {
     const core = await (await get(`emulator/data/cores/${v}/core.json`)).json();
     paths.push(`emulator/data/cores/${v}/build.json`, `emulator/data/cores/${v}/${core.name}_libretro.wasm`);

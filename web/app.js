@@ -734,7 +734,7 @@ const lowMemDevice = isIOS || /Android|Mobile/i.test(navigator.userAgent) || (na
 const autoEngineWhy = () => (isIOS ? 'iPhone / iPad' : /Android|Mobile/i.test(navigator.userAgent) ? 'appareil mobile' : 'mémoire ' + navigator.deviceMemory + ' Go');
 const currentEngine = () => (prefs.engine === 'auto' ? (lowMemDevice ? 'parallel' : 'mupen') : prefs.engine);
 async function power() {
-  if (!rom || running) return;
+  if (!rom || running || window.duoGuest) return;
   running = true;
   const pw = $('#power');
   pw.classList.add('on'); pw.lastElementChild.textContent = 'Éteindre';
@@ -2132,7 +2132,7 @@ $('#log-copy').addEventListener('click', async () => {
 });
 
 /* ================= Onglets ================= */
-const TABS = ['partie', 'image', 'cmd', 'codes', 'infos'];
+const TABS = ['partie', 'image', 'cmd', 'codes', 'infos', 'duo'];
 function showTab(name) {
   for (const t of TABS) {
     $('#tab-' + t).setAttribute('aria-selected', String(t === name));
@@ -2188,4 +2188,6 @@ renderSlots();
     if (it) { const r = await fetch(it.url); insertRom(new File([await r.blob()], it.name), { source: 'dossier', key: it.key }); }
   }
 })();
+// Pour duo.js (module à part) : ce dont « Jouer à deux » a besoin
+window.eden = { $, em, ACTIONS, currentPad, bindOn, audioTap, toast, showNotice, savePrefs, get running() { return running; }, get rom() { return rom; }, get prefs() { return prefs; } };
 }

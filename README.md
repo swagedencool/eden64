@@ -41,6 +41,10 @@ Deux moteurs : **mupen64plus-next + GLideN64** (jusqu'à 2560×1920, 16:9 natif,
 
 Toutes les touches se changent, au clavier (AZERTY ou QWERTY) comme à la manette, combinaisons comprises. Les manettes sont détectées toutes seules, la **vibration** passe par la vraie manette, et une manette tactile s'affiche sur téléphone. L'accessoire est choisi selon le jeu : carte mémoire, Rumble Pak ou **Transfer Pak** avec ta cartouche Game Boy (Pokémon Stadium, Mario Golf…).
 
+### À deux, à distance
+
+Crée une salle dans l'onglet **À deux** et envoie le lien à un ami : il voit ton jeu en direct, avec le son, et joue avec sa manette ou son clavier. **Il n'a pas besoin de la cartouche.** Tu choisis sa manette : il regarde, il pilote Link avec toi (l'un se déplace, l'autre gère les objets), ou il prend la manette 2. Il peut demander la manette, et vous vous envoyez des réactions. Les deux navigateurs se parlent directement, chiffré de bout en bout, comme dans [PokéLink](https://github.com/swagedencool/eden-pokelink).
+
 ### Codes, ocarina, captures
 
 GameShark : codes pour 742 jeux, reconnus par l'empreinte de la cartouche. Partitions d'ocarina : les 12 mélodies avec tes touches, et la mélodie jouée est reconnue. Captures PNG et clips vidéo MP4 avec le son, en un clic ou un raccourci, et un mode plein écran.
@@ -59,6 +63,7 @@ Aucun jeu n'est fourni : utilise les dumps de tes propres cartouches.
 
 - **Site statique**, sans serveur ni compte : tout tourne dans le navigateur, en WebAssembly.
 - **Émulateur** : [EmulatorJS](https://github.com/EmulatorJS/EmulatorJS) et les cœurs libretro mupen64plus-next et ParaLLEl-N64, avec un petit patch qui ouvre des points d'accroche.
+- **À deux** : WebRTC pair-à-pair avec [Trystero](https://github.com/dmotz/trystero) (`web/duo.js`).
 - Le reste est du JavaScript simple dans `web/app.js`, sans framework ni bundler. Détails : [docs/TECHNIQUE.md](docs/TECHNIQUE.md).
 
 ## Développement
@@ -66,6 +71,7 @@ Aucun jeu n'est fourni : utilise les dumps de tes propres cartouches.
 ```sh
 node tools/serveur.mjs                     # le site en local : http://localhost:8064
 node tests/smoke.mjs                       # vérifie que chaque fichier du site est servi (aucune dépendance)
+python tests/duo_e2e.py                    # « À deux » dans deux onglets (Playwright, un jeu dans roms/)
 python tools/build_cheats.py <libretro-database>   # régénère les codes dans web/cheats/
 ```
 
