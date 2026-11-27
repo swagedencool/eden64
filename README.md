@@ -14,9 +14,12 @@
   <a href="../../actions/workflows/ci.yml"><img src="https://github.com/swagedencool/eden64/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <img src="https://img.shields.io/badge/licence-GPL--3.0-blue" alt="GPL-3.0">
   <img src="https://img.shields.io/badge/test%C3%A9-Ocarina%20of%20Time-d22f27" alt="Testé sur Ocarina of Time">
+  <img src="https://img.shields.io/badge/nouveau-2%20joueurs%20sur%20Ocarina%20of%20Time-2fbf71" alt="Nouveau : 2 joueurs sur Ocarina of Time">
 </p>
 
 ![Ocarina of Time dans eden64 : Link au Temple du Temps](docs/images/jeu.webp)
+
+> 🆕 **Jouer à deux sur Ocarina of Time** : crée une salle dans l'onglet « À deux », envoie le lien, et ton ami apparaît dans ton monde avec le vrai Link du jeu, en tunique violette ou jaune, ses animations et ce qu'il tient en main. [En savoir plus](#à-deux-à-distance)
 
 > Testé de bout en bout avec **The Legend of Zelda: Ocarina of Time** (version européenne). Les autres jeux passent par les mêmes moteurs, mais n'ont pas tous été essayés.
 
